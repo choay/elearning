@@ -1,0 +1,10 @@
+{
+  "development": {
+    "username": "root",
+    "password": "0000",
+    "database": "elearning",
+    "host": "127.0.0.1",
+    "dialect": "mysql",
+    "port": 3306 
+  }
+}
