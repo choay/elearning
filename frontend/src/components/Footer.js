@@ -9,9 +9,9 @@ function Footer() {
           {/* About Section */}
           <div className="mb-4 md:mb-0">
             <h2 className="text-xl font-bold mb-2">À propos</h2>
-            <p className="text-gray-300">
-              Notre site offre des informations et des ressources pour vous aider à
-              améliorer vos connaissances.
+            <p className="text-gray-300 mr-24">
+              Knowledge - Votre partenaire pour un apprentissage autonome et accessible,
+              où que vous soyez. Découvrez nos formations en ligne et élargissez vos compétences dès aujourd'hui.
             </p>
           </div>
 
@@ -35,6 +35,21 @@ function Footer() {
               </ul>
             </div>
 
+            {/* legals */}
+            <div>
+              <h2 className="text-xl font-bold mb-2">Mentions legales</h2>
+              <ul className="space-y-2">
+                <li>
+                  <Link to="/mentions-legales" className="text-[#f1f8fc] hover:underline mx-2">Mentions Légales</Link>
+                </li>
+                <li>
+                  <Link to="/politique-de-confidentialite" className="text-[#f1f8fc] hover:underline mx-2">Politique de Confidentialité</Link>
+                </li>
+                
+              </ul>
+            </div>
+        
+
             {/* Follow Us Section */}
             <div>
               <h2 className="text-xl font-bold mb-2">Suivez-nous</h2>
@@ -52,10 +67,12 @@ function Footer() {
             </div>
           </div>
         </div>
+        
+        
 
         {/* Bottom Section */}
         <div className="text-center mt-8">
-          <p className="text-gray-400">&copy; {new Date().getFullYear()} Votre Entreprise. Tous droits réservés.</p>
+          <p className="text-gray-400">&copy; {new Date().getFullYear()} Knowledge.</p>
         </div>
       </div>
     </footer>

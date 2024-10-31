@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext'; 
 import Cookies from 'js-cookie';
+import logo from '../assets/images/logo.png';
 
 function Header() {
   const [isOpen, setIsOpen] = useState(false);
@@ -32,7 +33,9 @@ function Header() {
     <header className="fixed top-0 left-0 w-full bg-[#00497c] text-[#f1f8fc] z-50">
       <nav className="max-w-7xl mx-auto flex items-center justify-between p-4">
         <div className="font-bold text-lg">
-          <Link to="/" className="hover:text-gray-300">Knowledge</Link>
+          <Link to="/" className="hover:text-gray-300">
+            <img className="w-24 h-12"  src={logo} alt='logo'/>
+          </Link>
         </div>
 
         <button

@@ -17,6 +17,8 @@ import AdminPage from './pages/AdminPage';
 import ProfilePage from './pages/profilePage';
 import Confirmation from './pages/Confirmation';
 import ErrorPage from './pages/ErrorPage';
+import LegalMentions from './pages/LegalMentions';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
 
@@ -47,6 +49,9 @@ function App() {
               <Route path="/admin" element={<AdminPage />} />
 
               <Route path="/profile" element={<ProfilePage />} />
+
+              <Route path="/mentions-legales" element={<LegalMentions />} />
+              <Route path="/politique-de-confidentialite" element={<PrivacyPolicy />} />
 
               {/* Confirmation and Error Pages */}
               <Route path="/confirmation" element={<Confirmation />} />
