@@ -12,19 +12,19 @@ function Signup() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Vérifiez si les mots de passe correspondent
+    // Check if passwords match
     if (password !== confirmPassword) {
       setError("Les mots de passe ne correspondent pas");
       return;
     }
 
-    // Vérifiez si les champs requis sont remplis
+    // Check if all required fields are filled
     if (!email || !password) {
       setError("Tous les champs sont requis");
       return;
     }
 
-    // Vérification de la complexité du mot de passe
+    // Validate password complexity
     const passwordValidation = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
     if (!passwordValidation.test(password)) {
       setError(
@@ -34,7 +34,7 @@ function Signup() {
     }
 
     try {
-      // Envoyez les données au serveur
+      // Send data to the server
       const response = await fetch(`${process.env.REACT_APP_API_URL}/api/auth/register`, {
         method: 'POST',
         headers: {
@@ -50,8 +50,8 @@ function Signup() {
         return;
       }
 
-      // Affiche un message de succès et redirige vers la page de connexion
-      setSuccess("Mail d'activation envoyé. Veuillez vérifier votre boîte mail.");
+      // Show success message and redirect to login page
+      setSuccess("Lien d'activation envoyé. Veuillez vérifier votre boîte mail.");
       setTimeout(() => {
         navigate('/login');
       }, 3000);
