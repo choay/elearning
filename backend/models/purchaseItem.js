@@ -1,30 +1,22 @@
-// models/purchaseItem.js
-const { DataTypes } = require('sequelize');
+'use strict';
+const { Model, DataTypes } = require('sequelize');
+const sequelize = require('../db');
+const Purchase = require('./purchase');
 
-module.exports = (sequelize) => {
-  const PurchaseItem = sequelize.define('PurchaseItem', {
-    purchaseId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'Purchases',
-        key: 'id',
-      },
-      onDelete: 'CASCADE',
-    },
-    productType: {
-      type: DataTypes.ENUM('lesson', 'cursus'),
-      allowNull: false,
-    },
-    productId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-    },
-    price: {
-      type: DataTypes.FLOAT,
-      allowNull: false,
-    },
-  });
+class PurchaseItem extends Model {}
 
-  return PurchaseItem;
-};
+PurchaseItem.init({
+  productType: { type: DataTypes.ENUM('lesson','cursus'), allowNull: false },
+  productId: { type: DataTypes.INTEGER, allowNull: false },
+  price: { type: DataTypes.FLOAT, allowNull: false }
+}, {
+  sequelize,
+  modelName: 'PurchaseItem',
+  tableName: 'PurchaseItems',
+  timestamps: true
+});
+
+PurchaseItem.belongsTo(Purchase, { foreignKey: 'purchaseId', onDelete: 'CASCADE' });
+Purchase.hasMany(PurchaseItem, { foreignKey: 'purchaseId', onDelete: 'CASCADE' });
+
+module.exports = PurchaseItem;

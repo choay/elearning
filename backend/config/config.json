@@ -1,9 +1,9 @@
 {
   "development": {
-    "username": "root",
-    "password": "0000",
-    "database": "elearning",
-    "host": "127.0.0.1",
+    "username": "chomag_chomag",
+    "password": "motdepasse",
+    "database": "chomag_chomag",
+    "host": "10.123.0.211",
     "dialect": "mysql",
     "port": 3306 
   }

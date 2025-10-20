@@ -1,27 +1,18 @@
-// models/cursus.js
-const { DataTypes } = require('sequelize');
+'use strict';
+const { Model, DataTypes } = require('sequelize');
+const Theme = require('./theme');
 
-module.exports = (sequelize) => {
-  const Cursus = sequelize.define('Cursus', {
-    title: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    prix: {
-      type: DataTypes.FLOAT,
-      allowNull: false,
-    },
-    themeId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'Themes',
-        key: 'id',
-      },
-      onDelete: 'CASCADE',
-      onUpdate: 'CASCADE',
-    },
-  });
+class Cursus extends Model {}
 
-  return Cursus;
-};
+Cursus.init({
+  title: { type: DataTypes.STRING, allowNull: false },
+  prix: { type: DataTypes.FLOAT, allowNull: false }
+}, {
+  sequelize: require('../db'),
+  modelName: 'Cursus',
+  tableName: 'Cursus'
+});
+
+Cursus.belongsTo(Theme, { foreignKey: 'themeId', onDelete: 'CASCADE' });
+
+module.exports = Cursus;

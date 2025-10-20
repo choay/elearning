@@ -1,29 +1,24 @@
-// models/progress.js
-const { DataTypes } = require('sequelize');
+'use strict';
+const { Model, DataTypes } = require('sequelize');
+const sequelize = require('../db');
+const User = require('./user');
+const Lesson = require('./lesson');
 
-module.exports = (sequelize) => {
-  const Progress = sequelize.define('Progress', {
-    userId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'Users',
-        key: 'id',
-      },
-    },
-    lessonId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'Lessons',
-        key: 'id',
-      },
-    },
-    completed: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false,
-    },
-  });
+class Progress extends Model {}
 
-  return Progress;
-};
+Progress.init({
+  completed: { type: DataTypes.BOOLEAN, defaultValue: false }
+}, {
+  sequelize,
+  modelName: 'Progress',
+  tableName: 'Progress',
+  timestamps: true
+});
+
+Progress.belongsTo(User, { foreignKey: 'userId', onDelete: 'CASCADE' });
+User.hasMany(Progress, { foreignKey: 'userId', onDelete: 'CASCADE' });
+
+Progress.belongsTo(Lesson, { foreignKey: 'lessonId', onDelete: 'CASCADE' });
+Lesson.hasMany(Progress, { foreignKey: 'lessonId', onDelete: 'CASCADE' });
+
+module.exports = Progress;
