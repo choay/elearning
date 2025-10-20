@@ -1,32 +1,23 @@
-// models/lesson.js
-const { DataTypes } = require('sequelize');
+'use strict';
+const { Model, DataTypes } = require('sequelize');
+const sequelize = require('../db');
+const Cursus = require('./cursus');
 
-module.exports = (sequelize) => {
-  const Lesson = sequelize.define('Lesson', {
-    title: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    prix: {
-      type: DataTypes.FLOAT,
-      allowNull: false,
-    },
-    videoUrl: {
-      type: DataTypes.STRING,
-    },
-    description: {
-      type: DataTypes.TEXT,
-    },
-    cursusId: {
-      type: DataTypes.INTEGER,
-      references: {
-        model: 'Cursus',
-        key: 'id',
-      },
-      onDelete: 'CASCADE',
-      onUpdate: 'CASCADE',
-    },
-  });
+class Lesson extends Model {}
 
-  return Lesson;
-};
+Lesson.init({
+  title: { type: DataTypes.STRING, allowNull: false },
+  prix: { type: DataTypes.FLOAT, allowNull: false },
+  description: { type: DataTypes.TEXT, allowNull: true },
+  videoUrl: { type: DataTypes.STRING, allowNull: true }
+}, {
+  sequelize,
+  modelName: 'Lesson',
+  tableName: 'Lessons',
+  timestamps: true
+});
+
+Lesson.belongsTo(Cursus, { foreignKey: 'cursusId', onDelete: 'CASCADE' });
+Cursus.hasMany(Lesson, { foreignKey: 'cursusId', onDelete: 'CASCADE' });
+
+module.exports = Lesson;

@@ -1,29 +1,21 @@
-// models/purchase.js
-const { DataTypes } = require('sequelize');
+'use strict';
+const { Model, DataTypes } = require('sequelize');
+const sequelize = require('../db');
+const User = require('./user');
 
-module.exports = (sequelize) => {
-  const Purchase = sequelize.define('Purchase', {
-    userId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'Users',
-        key: 'id',
-      },
-    },
-    paymentIntentId: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    totalAmount: {
-      type: DataTypes.FLOAT,
-      allowNull: false,
-    },
-    createdAt: {
-      type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW,
-    },
-  });
+class Purchase extends Model {}
 
-  return Purchase;
-};
+Purchase.init({
+  paymentIntentId: { type: DataTypes.STRING, allowNull: false },
+  totalAmount: { type: DataTypes.FLOAT, allowNull: false }
+}, {
+  sequelize,
+  modelName: 'Purchase',
+  tableName: 'Purchases',
+  timestamps: true
+});
+
+Purchase.belongsTo(User, { foreignKey: 'userId', onDelete: 'CASCADE' });
+User.hasMany(Purchase, { foreignKey: 'userId', onDelete: 'CASCADE' });
+
+module.exports = Purchase;

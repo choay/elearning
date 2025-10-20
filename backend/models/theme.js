@@ -1,19 +1,18 @@
-// models/theme.js
-const { DataTypes } = require('sequelize');
+'use strict';
+const { Model, DataTypes } = require('sequelize');
+const sequelize = require('../db');
 
-module.exports = (sequelize) => {
-  const Theme = sequelize.define('Theme', {
-    title: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    description: {
-      type: DataTypes.TEXT,
-    },
-    color: {
-      type: DataTypes.STRING,
-    },
-  });
+class Theme extends Model {}
 
-  return Theme;
-};
+Theme.init({
+  title: { type: DataTypes.STRING, allowNull: false },
+  description: { type: DataTypes.TEXT, allowNull: true },
+  color: { type: DataTypes.STRING, allowNull: true }
+}, {
+  sequelize,
+  modelName: 'Theme',
+  tableName: 'Themes',
+  timestamps: true
+});
+
+module.exports = Theme;

@@ -1,35 +1,21 @@
-// models/user.js
-const { DataTypes } = require('sequelize');
+'use strict';
+const { Model, DataTypes } = require('sequelize');
+const sequelize = require('../db');
 
-module.exports = (sequelize) => {
-  const User = sequelize.define('User', {
-    email: {
-      type: DataTypes.STRING,
-      unique: true,
-      allowNull: false,
-      validate: {
-        isEmail: true,
-      },
-    },
-    password: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    isActive: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false,
-    },
-    role: {
-      type: DataTypes.ENUM('user', 'admin'),
-      defaultValue: 'user',
-    },
-    activationToken: {
-      type: DataTypes.STRING,
-    },
-    activationExpires: {
-      type: DataTypes.DATE,
-    },
-  });
+class User extends Model {}
 
-  return User;
-};
+User.init({
+  email: { type: DataTypes.STRING, unique: true, allowNull: false, validate: { isEmail: true } },
+  password: { type: DataTypes.STRING, allowNull: false },
+  isActive: { type: DataTypes.BOOLEAN, defaultValue: false },
+  role: { type: DataTypes.ENUM('user','admin'), defaultValue: 'user' },
+  activationToken: { type: DataTypes.STRING },
+  activationExpires: { type: DataTypes.DATE }
+}, {
+  sequelize,
+  modelName: 'User',
+  tableName: 'Users',
+  timestamps: true
+});
+
+module.exports = User;
