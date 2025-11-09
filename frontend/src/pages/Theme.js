@@ -1,180 +1,165 @@
+// src/pages/Theme.js – VERSION 100% FONCTIONNELLE (UTILISE useAuth())
+
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useCart } from '../context/CartContext';
-import Cookies from 'js-cookie';
+import { useAuth } from '../context/AuthContext'; // OBLIGATOIRE
 
 function Theme() {
   const { themeId } = useParams();
   const { cart, addToCart } = useCart();
+  const { user } = useAuth(); // ON UTILISE LE VRAI USER AVEC LES ACHATS
+  const navigate = useNavigate();
+
   const [cursusList, setCursusList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [message, setMessage] = useState('');
   const [themeTitle, setThemeTitle] = useState('');
-  const [purchasedCursus, setPurchasedCursus] = useState([]);
-  const navigate = useNavigate();
 
-  // Fetch theme data
+  // CHARGEMENT DU THÈME
   useEffect(() => {
     const fetchTheme = async () => {
       try {
-        console.log(`Fetching theme with ID: ${themeId}`);
         const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/themes/${themeId}`);
-        
-        console.log('API Response:', response.data);
-        if (response.data) {
-          // Corrected to match the API response structure
-          setCursusList(response.data.Cursus || []);
-          setThemeTitle(response.data.title || ''); 
-        } else {
-          setError('Données du thème introuvables.');
-        }
+        setCursusList(response.data.Cursus || []);
+        setThemeTitle(response.data.title || '');
       } catch (err) {
-        console.error('Erreur lors du chargement du thème:', err);
         setError('Erreur lors du chargement du thème.');
       } finally {
         setLoading(false);
       }
     };
-
     fetchTheme();
   }, [themeId]);
 
-  // Fetch user purchases
-  useEffect(() => {
-    const token = Cookies.get('authToken');
-    const userId = Cookies.get('userId');
-    if (token && userId) {
-      const fetchUserPurchases = async () => {
-        try {
-          console.log('Fetching user purchases...');
-          const purchasesResponse = await axios.get(
-            `${process.env.REACT_APP_API_URL}/api/achats/user/${userId}`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
-          const achats = purchasesResponse.data;
-
-          console.log('User purchases:', achats);
-
-          if (Array.isArray(achats)) {
-            const purchasedCursusIds = achats.flatMap((achat) =>
-              achat.PurchaseItems?.filter(item => item.productType === 'cursus').map(item => item.productId) || []
-            );
-            setPurchasedCursus(purchasedCursusIds);
-          } else {
-            setPurchasedCursus([]);
-          }
-        } catch (error) {
-          console.error('Erreur lors de la récupération des achats:', error);
-          setPurchasedCursus([]);
-        }
-      };
-      fetchUserPurchases();
-    } else {
-      setPurchasedCursus([]);
-    }
-  }, []);
-
+  // FONCTION AJOUT AU PANIER
   const handleAddToCart = (cursusItem) => {
-    const token = Cookies.get('authToken');
-
-    if (!token) {
-      setMessage('Veuillez vous connecter pour ajouter des éléments au panier.');
+    if (!user) {
+      setMessage('Veuillez vous connecter pour ajouter au panier.');
       setTimeout(() => setMessage(''), 5000);
       navigate('/login');
       return;
     }
 
-    if (purchasedCursus.includes(cursusItem.id)) {
-      setMessage('Vous avez déjà acheté ce cursus.');
-      return;
-    }
+    const itemToAdd = {
+      id: cursusItem.id,
+      title: cursusItem.title,
+      prix: cursusItem.prix,
+      cursusId: cursusItem.id,
+      lessonId: null,
+      productType: 'cursus',
+      productId: cursusItem.id,
+    };
 
-    const alreadyInCart = cart.some(
-      (cartItem) => cartItem.cursusId === cursusItem.id && !cartItem.lessonId
-    );
-    if (alreadyInCart) {
-      setMessage(`${cursusItem.title} est déjà dans le panier !`);
-    } else {
-      const itemToAdd = {
-        id: cursusItem.id,
-        title: cursusItem.title,
-        prix: cursusItem.prix,
-        cursusId: cursusItem.id,
-        lessonId: null,
-      };
-
-      addToCart(itemToAdd);
-      setMessage(`${cursusItem.title} a été ajouté au panier !`);
-    }
-
-    setTimeout(() => {
-      setMessage('');
-    }, 5000);
+    addToCart(itemToAdd);
+    setMessage(`${cursusItem.title} ajouté au panier !`);
+    setTimeout(() => setMessage(''), 5000);
   };
 
   if (loading) {
-    return <div>Chargement...</div>;
-  }
-
-  if (error) {
     return (
-      <div className="text-red-500">
-        {error}
-        <Link to="/">
-          <button className="mt-4 px-4 py-2 bg-blue-500 text-white rounded">
-            Retour à l'accueil
-          </button>
-        </Link>
+      <div className="min-h-screen flex items-center justify-center pt-24">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-4" style={{ borderColor: '#0074c7' }}></div>
+        <p className="ml-4 text-xl" style={{ color: '#384050' }}>Chargement...</p>
       </div>
     );
   }
 
-  if (!cursusList.length) {
-    console.log('Aucun cursus trouvé.');
-    return <div>Aucun cursus trouvé pour ce thème.</div>;
+  if (error) {
+    return <div className="text-red-600 p-8 text-center">{error}</div>;
   }
 
   return (
-    <div className="min-h-screen pt-24 pl-12">
-      {message && <p className="text-green-500">{message}</p>}
-      <h1 className="text-3xl font-bold mb-4">Liste des Cursus pour le thème : {themeTitle}</h1>
-      <ul>
+    <div className="min-h-screen p-8 md:p-12 lg:p-16 pt-24" style={{ backgroundColor: '#f1f8fc' }}>
+      {message && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-xl shadow-xl font-medium text-white`}
+          style={{ backgroundColor: message.includes('ajouté') ? '#0074c7' : '#cd2c2e' }}
+        >
+          {message}
+        </div>
+      )}
+
+      <h1 className="text-4xl font-extrabold mb-10 border-b-4 pb-3" style={{ color: '#384050', borderColor: '#0074c7' }}>
+        Thème : {themeTitle}
+      </h1>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
         {cursusList.map((cursusItem) => {
-          const isPurchased = purchasedCursus.includes(cursusItem.id);
-          const isInCart = cart.some(
-            (cartItem) => cartItem.cursusId === cursusItem.id && !cartItem.lessonId
-          );
+          // VÉRIFICATIONS 100% FIABLES
+          const isPurchased = user?.ownedCurricula?.includes(cursusItem.id) || false;
+          const isInCart = cart.some(item => item.productType === 'cursus' && item.productId === cursusItem.id);
+          const hasLessonInCart = cart.some(item => item.cursusId === cursusItem.id && item.productType === 'lesson');
+
+          // TEXTE ET STYLE DU BOUTON
+          let buttonText = 'Ajouter au panier';
+          let buttonStyle = { backgroundColor: '#0074c7' };
+
+          if (isPurchased) {
+            buttonText = 'Déjà acheté (Accéder)';
+            buttonStyle = { backgroundColor: '#00497c' };
+          } else if (hasLessonInCart) {
+            buttonText = 'Leçon dans le panier';
+            buttonStyle = { backgroundColor: '#384050', opacity: 0.6, cursor: 'not-allowed' };
+          } else if (isInCart) {
+            buttonText = 'Déjà dans le panier';
+            buttonStyle = { backgroundColor: '#00497c' };
+          } else if (!user) {
+            buttonText = 'Se connecter pour acheter';
+            buttonStyle = { backgroundColor: '#cd2c2e' };
+          }
 
           return (
-            <li key={cursusItem.id} className="mb-4">
-              <h3 className="text-xl font-semibold">{cursusItem.title}</h3>
-              <p>Prix : {cursusItem.prix} €</p>
-              <button
-                onClick={() => handleAddToCart(cursusItem)}
-                className={`mt-2 px-4 py-2 ${
-                  isInCart ? 'bg-gray-300' : 'bg-blue-500 hover:bg-blue-600'
-                } text-white rounded mr-4`}
-                disabled={isPurchased || isInCart}
-              >
-                {isPurchased
-                  ? 'Cursus déjà acheté'
-                  : isInCart
-                  ? 'Déjà dans le panier'
-                  : 'Ajouter au panier'}
-              </button>
-              <Link to={`/cursus/${cursusItem.id}`}>
-                <button className="mt-2 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
-                  Voir le Cursus
+            <div 
+              key={cursusItem.id} 
+              className="rounded-2xl shadow-xl overflow-hidden transition-all duration-300 transform hover:scale-[1.03] hover:shadow-2xl flex flex-col"
+              style={{ backgroundColor: '#384050' }} 
+            >
+              <div className="p-6 flex justify-center items-center h-32" style={{ backgroundColor: '#f1f8fc' }}>
+                <span className="text-5xl font-extrabold" style={{ color: '#0074c7' }}>
+                  {cursusItem.title.charAt(0).toUpperCase()}
+                </span>
+              </div>
+
+              <div className="p-6 flex flex-col flex-grow text-white">
+                <h3 className="text-xl font-bold mb-3 line-clamp-2">
+                  {cursusItem.title}
+                </h3>
+                <p className="text-white/80 text-sm mb-4 flex-grow">
+                  Apprenez les fondamentaux et les techniques avancées de ce cursus passionnant.
+                </p>
+
+                <div className="flex justify-between items-center mb-4 pt-4 border-t" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
+                  <p className="text-2xl font-extrabold" style={{ color: '#0074c7' }}>
+                    {cursusItem.prix ? `${cursusItem.prix} €` : 'Gratuit'}
+                  </p>
+                  <Link to={`/cursus/${cursusItem.id}`} className="text-sm font-medium" style={{ color: '#f1f8fc' }}>
+                    Voir détails
+                  </Link>
+                </div>
+
+                <button
+                  onClick={() => {
+                    if (isPurchased) {
+                      navigate(`/cursus/${cursusItem.id}`);
+                    } else if (!isInCart && !hasLessonInCart && user) {
+                      handleAddToCart(cursusItem);
+                    } else if (!user) {
+                      navigate('/login');
+                    }
+                  }}
+                  className="w-full py-3 mt-auto font-semibold rounded-lg text-white transition duration-300"
+                  style={buttonStyle}
+                  disabled={isPurchased || isInCart || hasLessonInCart}
+                >
+                  {buttonText}
                 </button>
-              </Link>
-            </li>
+              </div>
+            </div>
           );
         })}
-      </ul>
+      </div>
     </div>
   );
 }

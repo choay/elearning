@@ -2,7 +2,12 @@
 const { Model, DataTypes } = require('sequelize');
 const sequelize = require('../db');
 
-class Theme extends Model {}
+class Theme extends Model {
+  // Les associations seront définies dans index.js
+  static associate(models) {
+    // Theme.hasMany(models.Cursus, { foreignKey: 'themeId' });
+  }
+}
 
 Theme.init({
   title: { type: DataTypes.STRING, allowNull: false },

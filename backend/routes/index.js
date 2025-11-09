@@ -1,37 +1,113 @@
-const express = require('express');
-const router = express.Router();
-const themeController = require('../controllers/themeController');
-const cursusController = require('../controllers/cursusController');
-const lessonController = require('../controllers/lessonController');
-const certificatController = require('../controllers/certificatController');
-const achatController = require('../controllers/achatController');
-const userController = require('../controllers/userController');
+const { User } = require('../models'); // Assurez-vous d'importer votre modèle User
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
-// Routes pour les thèmes
-router.get('/themes/:id', themeController.getThemeById);
+// Fonction utilitaire pour générer un token JWT
+const generateToken = (id) => {
+    // Vérifiez que JWT_SECRET est bien défini dans .env
+    if (!process.env.JWT_SECRET) {
+        throw new Error('JWT_SECRET n\'est pas défini dans les variables d\'environnement.');
+    }
+    return jwt.sign({ id }, process.env.JWT_SECRET, {
+        expiresIn: '30d',
+    });
+};
 
-// Routes pour les cursus
-router.get('/cursus/:id', cursusController.getCursusById);
+// @desc    Enregistrer un nouvel utilisateur
+// @route   POST /api/auth/register
+// @access  Public
+exports.register = async (req, res) => {
+    // NOTE: Il est crucial que les champs ici (email, password, name) correspondent
+    // aux champs envoyés par votre formulaire d'inscription dans le frontend.
+    const { email, password, name } = req.body;
 
-// Routes pour les leçons
-router.get('/lessons/:id', lessonController.getLessonById);
+    // 1. Validation de base
+    if (!email || !password) {
+        // Renvoie une erreur JSON claire au frontend
+        return res.status(400).json({ message: 'Veuillez fournir un email et un mot de passe.' });
+    }
 
-// Routes pour les certificats
-router.get('/certificates/:id', certificatController.getCertificatById);
-router.post('/certificates', certificatController.createCertificat);
-router.put('/certificates/:id', certificatController.updateCertificat);
-router.delete('/certificates/:id', certificatController.deleteCertificat);
+    try {
+        // 2. Vérification si l'utilisateur existe déjà
+        const userExists = await User.findOne({ where: { email } });
 
-// Routes pour les achats
-router.get('/achats/:id', achatController.getAchatById);
-router.post('/achats', achatController.createAchat);
-router.put('/achats/:id', achatController.updateAchat);
-router.delete('/achats/:id', achatController.deleteAchat);
+        if (userExists) {
+            return res.status(400).json({ message: 'L\'utilisateur existe déjà.' });
+        }
 
-// Routes pour les utilisateurs
-router.get('/users/:id', userController.getUserById);
-router.post('/users', userController.createUser);
-router.put('/users/:id', userController.updateUser);
-router.delete('/users/:id', userController.deleteUser);
+        // 3. Chiffrement du mot de passe
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
 
-module.exports = router;
+        // 4. Création de l'utilisateur dans la BDD
+        const user = await User.create({
+            name,
+            email,
+            password: hashedPassword,
+            // Assurez-vous d'ajouter ici les champs requis par votre modèle (ex: role: 'user')
+        });
+
+        if (user) {
+            // 5. Réponse réussie avec token
+            // Vous pouvez choisir d'utiliser un cookie pour le token au lieu de le renvoyer directement dans le corps
+            res.status(201).json({
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                token: generateToken(user.id),
+            });
+        } else {
+            res.status(400).json({ message: 'Données utilisateur invalides lors de la création.' });
+        }
+    } catch (error) {
+        console.error('Erreur d\'enregistrement:', error);
+        res.status(500).json({ message: 'Erreur du serveur lors de l\'enregistrement.' });
+    }
+};
+
+// @desc    Authentifier un utilisateur
+// @route   POST /api/auth/login
+// @access  Public
+exports.login = async (req, res) => {
+    const { email, password } = req.body;
+
+    // Validation de base
+    if (!email || !password) {
+        return res.status(400).json({ message: 'Veuillez fournir un email et un mot de passe pour la connexion.' });
+    }
+
+    try {
+        const user = await User.findOne({ where: { email } });
+
+        // Vérifie l'existence de l'utilisateur ET la correspondance du mot de passe chiffré
+        if (user && (await bcrypt.compare(password, user.password))) {
+            res.json({
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                token: generateToken(user.id),
+            });
+        } else {
+            res.status(401).json({ message: 'Email ou mot de passe invalide.' });
+        }
+    } catch (error) {
+        console.error('Erreur de connexion:', error);
+        res.status(500).json({ message: 'Erreur du serveur lors de la connexion.' });
+    }
+};
+
+// @desc    Obtenir les données utilisateur
+// @route   GET /api/auth/me
+// @access  Private (Nécessite le middleware 'protect')
+exports.getMe = async (req, res) => {
+    // Ici, req.user est défini par le middleware 'protect' après vérification du token
+    if (req.user) {
+        res.json({
+            id: req.user.id,
+            name: req.user.name,
+            email: req.user.email
+        });
+    } else {
+        res.status(401).json({ message: 'Non autorisé, pas de jeton.' });
+    }
+};

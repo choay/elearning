@@ -1,16 +1,14 @@
-// routes/purchaseRoutes.js
+// routes/achats.js (REPRISE DE LA VERSION CORRIGÉE)
+
 const express = require('express');
 const router = express.Router();
 const purchaseController = require('../controllers/purchaseController');
-const authMiddleware = require('../middleware/authMiddleware');
+const protect = require('../middleware/authMiddleware');
 
-// Créer un PaymentIntent
-router.post('/create-payment-intent', authMiddleware, purchaseController.createPaymentIntent);
+// Pas de routes /cart
 
-// Confirmer le paiement
-router.post('/confirm-payment', authMiddleware, purchaseController.confirmPayment);
-
-// Obtenir les achats d'un utilisateur
-router.get('/user/:userId', authMiddleware, purchaseController.getPurchasesByUserId);
+router.post('/create-payment-intent', protect, purchaseController.createPaymentIntent);
+router.post('/confirm-payment', protect, purchaseController.confirmPayment);
+router.get('/user/:userId', protect, purchaseController.getPurchasesByUserId);
 
 module.exports = router;

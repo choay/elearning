@@ -4,6 +4,11 @@ const router = express.Router();
 const userController = require('../controllers/userController');
 const authMiddleware = require('../middleware/authMiddleware');
 
+// Route de test simple SANS middleware
+router.get('/test', (req, res) => {
+    res.json({ status: 'User Router OK' });
+});
+
 // Obtenir un utilisateur (admin ou utilisateur connecté)
 router.get('/:id', authMiddleware, userController.getUser);
 

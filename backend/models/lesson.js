@@ -1,23 +1,24 @@
 'use strict';
 const { Model, DataTypes } = require('sequelize');
 const sequelize = require('../db');
-const Cursus = require('./cursus');
 
-class Lesson extends Model {}
+class Lesson extends Model {
+  static associate(models) {
+    Lesson.belongsTo(models.Cursus, { foreignKey: 'cursusId', onDelete: 'CASCADE' });
+  }
+}
 
 Lesson.init({
   title: { type: DataTypes.STRING, allowNull: false },
-  prix: { type: DataTypes.FLOAT, allowNull: false },
   description: { type: DataTypes.TEXT, allowNull: true },
-  videoUrl: { type: DataTypes.STRING, allowNull: true }
+  videoUrl: { type: DataTypes.STRING, allowNull: true },
+  prix: { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0.00 }, // 🔹 Champ prix ajouté ici
+  cursusId: { type: DataTypes.INTEGER, allowNull: false }
 }, {
   sequelize,
   modelName: 'Lesson',
   tableName: 'Lessons',
   timestamps: true
 });
-
-Lesson.belongsTo(Cursus, { foreignKey: 'cursusId', onDelete: 'CASCADE' });
-Cursus.hasMany(Lesson, { foreignKey: 'cursusId', onDelete: 'CASCADE' });
 
 module.exports = Lesson;

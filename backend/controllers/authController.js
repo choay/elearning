@@ -1,4 +1,3 @@
-// Importations nécessaires
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -8,164 +7,134 @@ const { Op } = require('sequelize');
 const { User } = require('../models');
 require('dotenv').config();
 
-// Configuration du transporteur de courrier électronique (Gmail)
+const generateTokens = (userId) => {
+    const accessToken = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
+    return { accessToken, refreshToken };
+};
+
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER ,
-    pass: process.env.GMAIL_PASS , 
-  },
-  logger: true,
-  debug: true,
-  tls: {
-    rejectUnauthorized: false 
-  }
+    service: 'gmail',
+    auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASS },
+    tls: { rejectUnauthorized: false }
 });
 
-// Fonction d'envoi d'email d'activation
 const sendActivationEmail = async (email, activationToken) => {
-  const activationLink = `${process.env.API_URL}/api/auth/activate/${activationToken}`;
-
-  try {
+    const link = `${process.env.API_URL}/api/auth/activate/${activationToken}`;
     await transporter.sendMail({
-      from: process.env.GMAIL_USER ,
-      to: email,
-      subject: 'Activation de votre compte',
-      html: `<p>Merci pour votre inscription. Veuillez cliquer sur le lien suivant pour activer votre compte :</p><a href="${activationLink}">Activer mon compte</a>`,
+        from: process.env.GMAIL_USER,
+        to: email,
+        subject: 'Activez votre compte',
+        html: `<p>Cliquez <a href="${link}">ici</a> pour activer votre compte.</p>`
     });
-    console.log(`Email d'activation envoyé avec succès à : ${email}`);
-  } catch (error) {
-    console.error('Erreur lors de l\'envoi de l\'email d\'activation :', error);
-    throw new Error('Erreur lors de l\'envoi de l\'email d\'activation. Veuillez réessayer plus tard.');
-  }
 };
 
-// Inscription d'un nouvel utilisateur
 exports.register = async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { email, password } = req.body;
-
-  try {
-    // Vérifier si l'utilisateur existe déjà
-    const existingUser = await User.findOne({ where: { email } });
-    if (existingUser) {
-      return res.status(400).json({ message: 'Cet email est déjà utilisé.' });
+    const { email, password } = req.body;
+    if (await User.findOne({ where: { email } })) {
+        return res.status(400).json({ message: 'Email déjà utilisé.' });
     }
 
-    // Hash du mot de passe et génération du token d'activation
     const hashedPassword = await bcrypt.hash(password, 10);
     const activationToken = crypto.randomBytes(32).toString('hex');
-    const activationExpires = new Date(Date.now() + 3600000); // Expiration dans 1 heure
 
-    // Créer le nouvel utilisateur
-    const newUser = await User.create({
-      email,
-      password: hashedPassword,
-      activationToken,
-      activationExpires,
-      isActive: false, // Par défaut, non activé
+    await User.create({
+        email,
+        password: hashedPassword,
+        activationToken,
+        activationExpires: Date.now() + 3600000,
+        isActive: false
     });
 
-    // Envoi de l'email d'activation
     await sendActivationEmail(email, activationToken);
-    res.status(201).json({ message: 'Inscription réussie. Veuillez vérifier votre boîte mail pour activer votre compte.' });
-  } catch (error) {
-    console.error('Erreur lors de l\'inscription :', error);
-    res.status(500).json({ message: 'Erreur serveur lors de l\'inscription.' });
-  }
+    res.status(201).json({ message: 'Inscription OK. Vérifiez vos emails.' });
 };
 
-// Activation du compte utilisateur
 exports.activateAccount = async (req, res) => {
-  const { token } = req.params;
-
-  try {
+    const { token } = req.params;
     const user = await User.findOne({
-      where: {
-        activationToken: token,
-        activationExpires: { [Op.gt]: Date.now() }, // Le token doit être encore valide
-      },
+        where: { activationToken: token, activationExpires: { [Op.gt]: Date.now() } }
     });
 
-    if (!user) {
-      return res.status(400).json({ message: 'Le lien d\'activation est invalide ou a expiré.' });
-    }
+    if (!user) return res.status(400).json({ message: 'Lien invalide ou expiré.' });
 
-    // Activer le compte et réinitialiser le token d'activation
+    user.isActive = true;
     user.activationToken = null;
     user.activationExpires = null;
-    user.isActive = true;
     await user.save();
 
-    res.json({ message: 'Votre compte a été activé avec succès!' });
-  } catch (error) {
-    console.error('Erreur lors de l\'activation :', error);
-    res.status(500).json({ message: 'Erreur serveur lors de l\'activation.' });
-  }
+    res.json({ message: 'Compte activé ! Vous pouvez vous connecter.' });
 };
 
-// Connexion d'un utilisateur
 exports.login = async (req, res) => {
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ message: 'Email et mot de passe requis.' });
-  }
-
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
-  try {
+    const { email, password } = req.body;
     const user = await User.findOne({ where: { email } });
-    if (!user) {
-      return res.status(404).json({ message: 'Utilisateur non trouvé.' });
+
+    if (!user || !await bcrypt.compare(password, user.password)) {
+        return res.status(401).json({ message: 'Email ou mot de passe incorrect.' });
     }
 
-    // Vérifier si le compte est activé
     if (!user.isActive) {
-      return res.status(403).json({ message: 'Votre compte n\'est pas activé. Veuillez vérifier votre email pour l\'activer.' });
+        return res.status(403).json({ message: 'Compte non activé. Vérifiez vos emails.' });
     }
 
-    // Vérifier le mot de passe
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-      return res.status(401).json({ message: 'Mot de passe incorrect.' });
-    }
+    const { accessToken, refreshToken } = generateTokens(user.id);
 
-    // Générer un token JWT
-    const token = jwt.sign({ userId: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // CORRECTION ICI
+        maxAge: 7 * 24 * 60 * 60 * 1000
+    });
 
-    res.json({ message: 'Connexion réussie', token, userId: user.id });
-  } catch (error) {
-    console.error('Erreur lors de la connexion :', error);
-    res.status(500).json({ message: 'Erreur serveur lors de la connexion.' });
-  }
+    res.json({
+        message: 'Connexion réussie',
+        accessToken,
+        user: { id: user.id, email: user.email }
+    });
 };
 
-// Obtenir les informations de l'utilisateur connecté
+// 🏆 FONCTION QUI CORRIGE LE PROBLÈME 401 : AJOUTÉE ICI 🏆
+exports.refresh = async (req, res) => {
+    const refreshToken = req.cookies.refreshToken;
+    if (!refreshToken) return res.status(401).json({ message: 'Non autorisé.' });
+
+    try {
+        const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+        const user = await User.findByPk(decoded.userId);
+        if (!user || !user.isActive) throw new Error();
+
+        const { accessToken: newAccessToken, refreshToken: newRefreshToken } = generateTokens(user.id);
+
+        res.cookie('refreshToken', newRefreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // CORRECTION ICI
+            maxAge: 7 * 24 * 60 * 60 * 1000
+        });
+
+        res.json({ accessToken: newAccessToken });
+    } catch (error) {
+        // En cas d'échec de vérification (token expiré/invalide)
+        res.clearCookie('refreshToken', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        });
+        res.status(403).json({ message: 'Session expirée. Reconnectez-vous.' });
+    }
+};
+// -------------------------------------------------------------
+
 exports.getCurrentUser = async (req, res) => {
-  const userId = req.user.id; // Supposons que vous ayez déjà vérifié et décodé le token JWT
-
-  try {
-    const user = await User.findByPk(userId);
-    if (!user) {
-      return res.status(404).json({ message: 'Utilisateur non trouvé.' });
-    }
-    res.json({ user: { id: user.id, email: user.email } }); // Ne renvoie que les informations nécessaires
-  } catch (error) {
-    console.error('Erreur lors de la récupération de l’utilisateur :', error);
-    res.status(500).json({ message: 'Erreur serveur lors de la récupération de l’utilisateur.' });
-  }
+    // req.user est disponible grâce au authMiddleware
+    res.json({ user: req.user });
 };
 
-// Déconnexion de l'utilisateur
 exports.logout = (req, res) => {
-  res.clearCookie('token'); // Suppression du token s'il est stocké dans un cookie
-  res.json({ message: 'Déconnexion réussie.' });
+    res.clearCookie('refreshToken');
+    res.json({ message: 'Déconnexion réussie.' });
 };

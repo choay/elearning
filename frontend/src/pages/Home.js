@@ -1,68 +1,112 @@
-// Home.js
-
-import React from 'react';
+// Home.js - VERSION DYNAMIQUE (copie-colle direct)
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import musiqueImage from '../assets/images/musique.webp';
-import informatiqueImage from '../assets/images/computer-room-8135519_640.webp';
-import jardinageImage from '../assets/images/garden-2218786_640.webp';
-import cuisineImage from '../assets/images/cooking.webp';
+import axios from 'axios';
 
-const Card = ({ to, imageSrc, altText, title, description, bgColor }) => (
+// Images statiques (on garde le mapping clair)
+import musiqueImg from '../assets/images/musique.webp';
+import infoImg from '../assets/images/computer-room-8135519_640.webp';
+import jardinImg from '../assets/images/garden-2218786_640.webp';
+import cuisineImg from '../assets/images/cooking.webp';
+
+const imageMap = {
+  Musique: musiqueImg,
+  Informatique: infoImg,
+  Jardinage: jardinImg,
+  Cuisine: cuisineImg,
+};
+
+const colorMap = {
+  Musique: "#0074c7",
+  Informatique: "#00497c",
+  Jardinage: "#384050",
+  Cuisine: "#cd2c2e",
+};
+
+const descMap = {
+  Musique: "Instruments, styles et théorie musicale.",
+  Informatique: "Programmation, algorithmes et technologies.",
+  Jardinage: "Entretien des plantes et techniques de culture.",
+  Cuisine: "Recettes et techniques culinaires du monde.",
+};
+
+const Card = ({ to, img, title, desc, color }) => (
   <Link
     to={to}
-    className="shadow-md rounded-lg p-6 transition transform hover:scale-105"
-    style={{ backgroundColor: bgColor, color: '#f1f8fc' }}
+    className="block rounded-2xl overflow-hidden shadow-xl transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+    style={{ backgroundColor: color }}
   >
-    <img src={imageSrc} alt={altText} className="w-full h-32 object-cover mb-4" />
-    <h2 className="text-xl font-semibold mb-2">{title}</h2>
-    <p>{description}</p>
+    <div className="relative">
+      <img src={img} alt={title} className="w-full h-48 object-cover hover:scale-110 transition duration-500" />
+      <div className="absolute inset-0 bg-black opacity-0 hover:opacity-20 transition-opacity" />
+    </div>
+    <div className="p-8 text-white">
+      <h2 className="text-2xl font-bold mb-3">{title}</h2>
+      <p className="text-white/90 text-sm">{desc}</p>
+      <span className="mt-6 inline-block text-sm font-semibold opacity-0 translate-y-2 hover:opacity-100 hover:translate-y-0 transition-all duration-300">
+        Découvrir
+      </span>
+    </div>
   </Link>
 );
 
-const Home = () => {
+export default function Home() {
+  const [themes, setThemes] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchThemes = async () => {
+      try {
+        const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/themes`);
+        
+        // ON FORCE L'ORDRE SOUHAITÉ (indépendant des IDs)
+        const ordered = res.data
+          .filter(t => ['Musique', 'Informatique', 'Jardinage', 'Cuisine'].includes(t.title))
+          .sort((a, b) => {
+            const order = { Musique: 1, Informatique: 2, Jardinage: 3, Cuisine: 4 };
+            return order[a.title] - order[b.title];
+          });
+
+        const formatted = ordered.map(t => ({
+          to: `/themes/${t.id}`,
+          img: imageMap[t.title] || musiqueImg,
+          title: t.title,
+          desc: descMap[t.title] || "Découvrez ce thème passionnant.",
+          color: colorMap[t.title] || "#384050",
+        }));
+
+        setThemes(formatted);
+      } catch (err) {
+        console.error("Erreur chargement thèmes:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchThemes();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f1f8fc]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-[#0074c7]"></div>
+        <span className="ml-4 text-xl text-[#384050]">Chargement des thèmes...</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#f1f8fc' }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <h1 className="text-3xl font-bold mt-8 p-4" style={{ color: '#384050' }}>
+    <div className="min-h-screen bg-[#f1f8fc]">
+      <div className="max-w-7xl mx-auto px-6 py-12">
+        <h1 className="text-center text-4xl font-bold mt-8 text-[#384050]">
           Bienvenue sur Knowledge
         </h1>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mt-8">
-          <Card
-            to="/themes/1"
-            imageSrc={musiqueImage}
-            altText="Un violon"
-            title="Musique"
-            description="Explorez le monde de la musique et apprenez divers instruments et styles."
-            bgColor="#0074c7"
-          />
-          <Card
-            to="/themes/2"
-            imageSrc={informatiqueImage}
-            altText="Ordinateur"
-            title="Informatique"
-            description="Plongez dans l'univers de l'informatique et de la programmation."
-            bgColor="#00497c"
-          />
-          <Card
-            to="/themes/3"
-            imageSrc={jardinageImage}
-            altText="Jardin"
-            title="Jardinage"
-            description="Apprenez l'art du jardinage et l'entretien des plantes."
-            bgColor="#384050"
-          />
-          <Card
-            to="/themes/4"
-            imageSrc={cuisineImage}
-            altText="Cuisine"
-            title="Cuisine"
-            description="Maîtrisez les compétences culinaires et découvrez de nouvelles recettes."
-            bgColor="#cd2c2e"
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 mt-16">
+          {themes.map((t, i) => (
+            <Card key={t.to} {...t} />
+          ))}
         </div>
       </div>
     </div>
   );
-};
-
-export default Home;
+}
