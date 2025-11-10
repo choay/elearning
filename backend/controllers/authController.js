@@ -1,4 +1,3 @@
-// controllers/authController.js
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -8,43 +7,29 @@ const { User } = require('../models');
 const sendActivationEmail = require('../utils/sendEmail');
 require('dotenv').config();
 
-// Génère access + refresh token
 const generateTokens = (userId) => {
-    const accessToken = jwt.sign(
-        { userId },
-        process.env.JWT_SECRET,
-        { expiresIn: '15m' }
-    );
-
+    const accessToken = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '15m' });
     const refreshPayload = { userId, jti: crypto.randomUUID() };
-    const refreshToken = jwt.sign(
-        refreshPayload,
-        process.env.JWT_REFRESH_SECRET,
-        { expiresIn: '7d' }
-    );
-
+    const refreshToken = jwt.sign(refreshPayload, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
     return { accessToken, refreshToken };
 };
 
-// Options cookie (centralisées)
 const isProd = process.env.NODE_ENV === 'production';
 const cookieOptions = {
     httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? 'None' : 'Lax',
+    secure: true,
+    sameSite: 'None',
     path: '/',
     maxAge: 7 * 24 * 60 * 60 * 1000
 };
 
-// OPTIONS POUR clearCookie (sans maxAge → évite le warning Express)
 const clearCookieOptions = {
     httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? 'None' : 'Lax',
+    secure: true,
+    sameSite: 'None',
     path: '/'
 };
 
-// === INSCRIPTION ===
 exports.register = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
@@ -63,7 +48,7 @@ exports.register = async (req, res) => {
             email,
             password: hashedPassword,
             activationToken,
-            activationExpires: Date.now() + 3600000, // 1h
+            activationExpires: Date.now() + 3600000,
             isActive: false
         });
 
@@ -75,16 +60,12 @@ exports.register = async (req, res) => {
     }
 };
 
-// === ACTIVATION ===
 exports.activateAccount = async (req, res) => {
     const { token } = req.params;
 
     try {
         const user = await User.findOne({
-            where: {
-                activationToken: token,
-                activationExpires: { [Op.gt]: Date.now() }
-            }
+            where: { activationToken: token, activationExpires: { [Op.gt]: Date.now() } }
         });
 
         if (!user) return res.status(400).json({ message: 'Lien invalide ou expiré.' });
@@ -101,7 +82,6 @@ exports.activateAccount = async (req, res) => {
     }
 };
 
-// === CONNEXION ===
 exports.login = async (req, res) => {
     const { email, password } = req.body;
     const user = await User.findOne({ where: { email } });
@@ -124,7 +104,6 @@ exports.login = async (req, res) => {
     });
 };
 
-// === REFRESH TOKEN ===
 exports.refresh = async (req, res) => {
     const refreshToken = req.cookies.refreshToken;
     if (!refreshToken) return res.status(401).json({ message: 'Non autorisé.' });
@@ -145,12 +124,10 @@ exports.refresh = async (req, res) => {
     }
 };
 
-// === UTILISATEUR ACTUEL ===
 exports.getCurrentUser = async (req, res) => {
     res.json({ user: req.user });
 };
 
-// === DÉCONNEXION ===
 exports.logout = (req, res) => {
     res.clearCookie('refreshToken', clearCookieOptions);
     res.json({ message: 'Déconnexion réussie.' });

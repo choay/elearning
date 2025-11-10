@@ -10,7 +10,7 @@ require('./models/index');
 const app = express();
 
 app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended34: true }));
 app.use(helmet({
     contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false
@@ -19,11 +19,14 @@ app.use(morgan('dev'));
 app.use(cookieParser());
 
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: process.env.CORS_ORIGIN || 'http://://elearning-client-nu.vercel.app',
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Set-Cookie']
 }));
+
+app.options('*', cors());
 
 console.log('CORS_ORIGIN →', process.env.CORS_ORIGIN);
 console.log('PORT →', process.env.PORT);
@@ -38,9 +41,7 @@ if (process.env.NODE_ENV === 'production') {
     sequelize.sync({ alter: true })
         .then(() => console.log('Base de données synchronisée (alter: true)'))
         .catch(err => {
-            if (err.original?.code === 'ER_TOO_MANY_KEYS') {
-                console.log('Index déjà existant (normal en dev) - ignoré.');
-            } else {
+            if (err.original?.code !== 'ER_TOO_MANY_KEYS') {
                 console.error('Erreur sync DB:', err);
             }
         });
@@ -78,14 +79,13 @@ app.use((err, req, res, next) => {
 if (process.env.NODE_ENV === 'production') {
     const https = require('https');
     setInterval(() => {
-        https.get('https://elearning-server-4wcs.onrender.com', (res) => {
-            console.log('Keep-alive ping →', res.statusCode);
-        }).on('error', () => {});
+        https.get('https://elearning-server-4wcs.onrender.com', () => {})
+             .on('error', () => {});
     }, 4 * 60 * 1000);
 }
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`SERVEUR DEMARRE SUR http://localhost:${PORT}`);
-    console.log(`API DISPONIBLE SUR ${process.env.API_URL || 'http://localhost:' + PORT}`);
+    console.log(`API DISPONIBLE SUR https://elearning-server-4wcs.onrender.com`);
 });
