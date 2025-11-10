@@ -10,11 +10,8 @@ require('dotenv').config();
 const generateTokens = (userId) => {
     const payload = { userId };
     const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '15m' });
-    
-    // On ajoute le token lui-même dans le payload pour pouvoir le revérifier sans DB
     const refreshPayload = { userId, jti: crypto.randomUUID() };
     const refreshToken = jwt.sign(refreshPayload, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
-    
     return { accessToken, refreshToken };
 };
 
@@ -90,8 +87,10 @@ exports.login = async (req, res) => {
 
     res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production', // OK en dev, true en prod
-        sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+        secure: true,
+        sameSite: 'None',
+        path: '/',
+        domain: '.onrender.com',
         maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
@@ -111,7 +110,6 @@ exports.refresh = async (req, res) => {
         const user = await User.findByPk(decoded.userId);
         if (!user || !user.isActive) throw new Error();
 
-        // REVÉRIFICATION DU TOKEN COMPLET (jti dans payload)
         let tokenPayload;
         try {
             tokenPayload = jwt.decode(refreshToken);
@@ -122,8 +120,10 @@ exports.refresh = async (req, res) => {
 
         res.cookie('refreshToken', newRefreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+            secure: true,
+            sameSite: 'None',
+            path: '/',
+            domain: '.onrender.com',
             maxAge: 7 * 24 * 60 * 60 * 1000
         });
 
@@ -131,8 +131,10 @@ exports.refresh = async (req, res) => {
     } catch (error) {
         res.clearCookie('refreshToken', {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+            secure: true,
+            sameSite: 'None',
+            path: '/',
+            domain: '.onrender.com'
         });
         res.status(403).json({ message: 'Session expirée. Reconnectez-vous.' });
     }
@@ -145,8 +147,10 @@ exports.getCurrentUser = async (req, res) => {
 exports.logout = (req, res) => {
     res.clearCookie('refreshToken', {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+        secure: true,
+        sameSite: 'None',
+        path: '/',
+        domain: '.onrender.com'
     });
     res.json({ message: 'Déconnexion réussie.' });
 };

@@ -30,7 +30,7 @@ console.log('PORT →', process.env.PORT);
 console.log('JWT_SECRET →', process.env.JWT_SECRET ? 'OK' : 'MANQUANT !');
 console.log('JWT_REFRESH_SECRET →', process.env.JWT_REFRESH_SECRET ? 'OK' : 'MANQUANT !');
 
-// SYNC DB SÉCURISÉ : alter seulement en dev
+// SYNC DB SÉCURISÉ → alter uniquement en dev
 if (process.env.NODE_ENV === 'production') {
     sequelize.sync()
         .then(() => console.log('Base de données synchronisée (production)'))
@@ -38,7 +38,13 @@ if (process.env.NODE_ENV === 'production') {
 } else {
     sequelize.sync({ alter: true })
         .then(() => console.log('Base de données synchronisée (alter: true)'))
-        .catch(err => console.error('Erreur sync DB:', err));
+        .catch(err => {
+            if (err.original?.code === 'ER_TOO_MANY_KEYS') {
+                console.log('Index déjà existant (normal en dev) - ignoré.');
+            } else {
+                console.error('Erreur sync DB:', err);
+            }
+        });
 }
 
 const purchaseRouter = require('./routes/purchaseRouter');
