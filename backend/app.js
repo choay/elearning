@@ -30,7 +30,6 @@ console.log('PORT →', process.env.PORT);
 console.log('JWT_SECRET →', process.env.JWT_SECRET ? 'OK' : 'MANQUANT !');
 console.log('JWT_REFRESH_SECRET →', process.env.JWT_REFRESH_SECRET ? 'OK' : 'MANQUANT !');
 
-// SYNC DB SÉCURISÉ → alter uniquement en dev
 if (process.env.NODE_ENV === 'production') {
     sequelize.sync()
         .then(() => console.log('Base de données synchronisée (production)'))
@@ -47,7 +46,6 @@ if (process.env.NODE_ENV === 'production') {
         });
 }
 
-// ROUTES
 const purchaseRouter = require('./routes/purchaseRouter');
 const authRouter = require('./routes/authRouter');
 const certificateRouter = require('./routes/certificateRouter');
@@ -77,14 +75,13 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Erreur interne', details: err.message });
 });
 
-// KEEP-ALIVE POUR RENDER GRATUIT (évite le spin-down)
 if (process.env.NODE_ENV === 'production') {
     const https = require('https');
     setInterval(() => {
         https.get('https://elearning-server-4wcs.onrender.com', (res) => {
             console.log('Keep-alive ping →', res.statusCode);
         }).on('error', () => {});
-    }, 4 * 60 * 1000); // toutes les 4 minutes
+    }, 4 * 60 * 1000);
 }
 
 const PORT = process.env.PORT || 5000;
