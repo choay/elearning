@@ -47,6 +47,7 @@ if (process.env.NODE_ENV === 'production') {
         });
 }
 
+// ROUTES
 const purchaseRouter = require('./routes/purchaseRouter');
 const authRouter = require('./routes/authRouter');
 const certificateRouter = require('./routes/certificateRouter');
@@ -75,6 +76,16 @@ app.use((err, req, res, next) => {
     console.error('ERREUR SERVEUR:', err);
     res.status(500).json({ error: 'Erreur interne', details: err.message });
 });
+
+// KEEP-ALIVE POUR RENDER GRATUIT (évite le spin-down)
+if (process.env.NODE_ENV === 'production') {
+    const https = require('https');
+    setInterval(() => {
+        https.get('https://elearning-server-4wcs.onrender.com', (res) => {
+            console.log('Keep-alive ping →', res.statusCode);
+        }).on('error', () => {});
+    }, 4 * 60 * 1000); // toutes les 4 minutes
+}
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
