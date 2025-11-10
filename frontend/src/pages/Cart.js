@@ -1,3 +1,4 @@
+// src/pages/Cart.js
 import React, { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -5,6 +6,9 @@ import axios from 'axios';
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { useNavigate } from 'react-router-dom';
 import { ShoppingCart, Trash2, Mail, X, CheckCircle, Loader } from 'lucide-react';
+
+// URL API (même que AuthContext)
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 function Cart() {
     const { cart, clearCart, removeFromCart, total } = useCart();
@@ -38,9 +42,16 @@ function Cart() {
         const lessonIds = [...new Set(cart.filter(i => i.productType === 'lesson').map(i => i.productId))];
 
         try {
-            const { data } = await axios.post('/api/achats/create-payment-intent', { cursusIds, lessonIds });
+            const { data } = await axios.post(`${API_URL}/api/achats/create-payment-intent`, 
+                { cursusIds, lessonIds },
+                { withCredentials: true }
+            );
+
             const result = await stripe.confirmCardPayment(data.clientSecret, {
-                payment_method: { card: elements.getElement(CardElement), billing_details: { email: user.email } }
+                payment_method: { 
+                    card: elements.getElement(CardElement), 
+                    billing_details: { email: user.email } 
+                }
             });
 
             if (result.error) {
@@ -50,12 +61,13 @@ function Cart() {
             }
 
             if (result.paymentIntent.status === 'succeeded') {
-                await axios.post('/api/achats/confirm-payment', {
+                await axios.post(`${API_URL}/api/achats/confirm-payment`, {
                     paymentIntentId: result.paymentIntent.id,
                     userId: user.id,
                     cursusIds,
                     lessonIds
-                });
+                }, { withCredentials: true });
+
                 setSuccess(true);
                 clearCart();
                 setTimeout(() => navigate('/profile'), 3000);
@@ -128,7 +140,13 @@ function Cart() {
                                         <label className="flex items-center gap-2 text-sm font-bold">
                                             <Mail className="w-4 h-4" /> Email
                                         </label>
-                                        <input type="email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full p-3 border rounded-lg mt-2" />
+                                        <input 
+                                            type="email" 
+                                            value={email} 
+                                            onChange={e => setEmail(e.target.value)} 
+                                            required 
+                                            className="w-full p-3 border rounded-lg mt-2" 
+                                        />
                                     </div>
 
                                     <div>
