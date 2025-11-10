@@ -1,13 +1,14 @@
+// src/pages/CursusPage.js — CORRIGÉ : Cursus bloqué si leçon déjà achetée
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useCart } from '../context/CartContext';
-import { useAuth } from '../context/AuthContext'; 
+import { useAuth } from '../context/AuthContext';
 
 function CursusPage() {
     const { cursusId } = useParams();
     const { user } = useAuth();
-    const { cart, addToCart } = useCart(); 
+    const { cart, addToCart } = useCart();
     const [cursus, setCursus] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -44,11 +45,11 @@ function CursusPage() {
                     let purchasedCursusIds = [];
 
                     if (Array.isArray(achats)) {
-                         for (const achat of achats) {
+                        for (const achat of achats) {
                             if (achat.PurchaseItems && achat.PurchaseItems.length > 0) {
                                 for (const item of achat.PurchaseItems) {
                                     if (item.productType === 'lesson') {
-                                        purchasedLessonIds.push(parseInt(item.productId)); 
+                                        purchasedLessonIds.push(parseInt(item.productId));
                                     } else if (item.productType === 'cursus') {
                                         purchasedCursusIds.push(parseInt(item.productId));
                                     }
@@ -94,21 +95,33 @@ function CursusPage() {
             return;
         }
 
+        const cursusIdInt = parseInt(cursusId);
+
+        if (purchasedCursus.includes(cursusIdInt)) {
+            customAlert('Cursus déjà acheté → leçon gratuite.');
+            return;
+        }
+
         if (purchasedLessons.includes(lesson.id)) {
             customAlert('Vous avez déjà accès à cette leçon.');
             return;
         }
 
-        if (cart.some(item => item.lessonId === lesson.id && item.cursusId === parseInt(cursusId))) {
+        if (cart.some(item => item.productType === 'cursus' && item.productId === cursusIdInt)) {
+            customAlert('Cursus complet dans le panier.');
+            return;
+        }
+
+        if (cart.some(item => item.lessonId === lesson.id)) {
             customAlert('Cette leçon est déjà dans votre panier.');
             return;
         }
 
         const itemToAdd = {
-            id: `lesson-${lesson.id}`, 
+            id: `lesson-${lesson.id}`,
             title: lesson.title,
             prix: lesson.prix,
-            cursusId: parseInt(cursusId),
+            cursusId: cursusIdInt,
             lessonId: lesson.id,
             productType: 'lesson',
             productId: lesson.id,
@@ -130,17 +143,24 @@ function CursusPage() {
             return;
         }
 
-        const lessons = cursus?.CourseLessons; 
-
+        const lessons = cursus?.CourseLessons;
         if (lessons && Array.isArray(lessons)) {
+            // BLOQUE SI UNE LEÇON EST DÉJÀ ACHETÉE
             const anyLessonPurchased = lessons.some(lesson => purchasedLessons.includes(lesson.id));
             if (anyLessonPurchased) {
                 customAlert('Vous avez déjà acheté une ou plusieurs leçons de ce cursus. Vous ne pouvez pas acheter le cursus entier.');
                 return;
             }
+
+            // BLOQUE SI UNE LEÇON EST DÉJÀ DANS LE PANIER
+            const anyLessonInCart = cart.some(item => item.cursusId === cursusIdInt && item.productType === 'lesson');
+            if (anyLessonInCart) {
+                customAlert('Une ou plusieurs leçons de ce cursus sont déjà dans le panier.');
+                return;
+            }
         }
-        
-        if (cart.some(item => item.cursusId === cursusIdInt && !item.lessonId)) {
+
+        if (cart.some(item => item.productType === 'cursus' && item.productId === cursusIdInt)) {
             customAlert('Ce cursus est déjà dans votre panier.');
             return;
         }
@@ -167,13 +187,12 @@ function CursusPage() {
     if (error) return <div className="text-red-600 p-8 text-center bg-red-50">{error}</div>;
     if (!cursus) return <div className="p-8 text-center">Aucun cursus trouvé.</div>;
 
-    const lessonsList = cursus?.CourseLessons || []; 
+    const lessonsList = cursus?.CourseLessons || [];
     const cursusIdInt = parseInt(cursusId);
-    
-    const isCursusInCart = cart.some(item => item.cursusId === cursusIdInt && !item.lessonId);
-    const lessonsPurchasedInCursus = lessonsList.some(lesson => purchasedLessons.includes(lesson.id));
-    const isPurchased = purchasedCursus.includes(cursusIdInt);
-    const disableCursusButton = isPurchased || lessonsPurchasedInCursus || isCursusInCart;
+    const isCursusPurchased = purchasedCursus.includes(cursusIdInt);
+    const isCursusInCart = cart.some(item => item.productType === 'cursus' && item.productId === cursusIdInt);
+    const hasLessonInCart = cart.some(item => item.cursusId === cursusIdInt && item.productType === 'lesson');
+    const hasLessonPurchased = lessonsList.some(lesson => purchasedLessons.includes(lesson.id));
 
     return (
         <div className="max-w-4xl mx-auto p-8 bg-white shadow-xl rounded-lg mt-10 font-sans">
@@ -193,13 +212,14 @@ function CursusPage() {
                 <button
                     onClick={handleAddCursusToCart}
                     className={`px-6 py-3 font-semibold transition duration-200 ease-in-out transform hover:scale-105 rounded-full shadow-md
-                        ${disableCursusButton ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}
+                        ${isCursusPurchased || hasLessonPurchased || hasLessonInCart || isCursusInCart ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}
                         `}
-                    disabled={isPurchased || lessonsPurchasedInCursus || isCursusInCart}
+                    disabled={isCursusPurchased || hasLessonPurchased || hasLessonInCart || isCursusInCart}
                 >
-                    {isPurchased ? 'Cursus déjà acheté' : 
-                    (lessonsPurchasedInCursus ? 'Leçons individuelles déjà achetées' : 
-                    (isCursusInCart ? 'Déjà dans le panier' : 'Acheter le cursus'))}
+                    {isCursusPurchased ? 'Cursus déjà acheté' : 
+                    (hasLessonPurchased ? 'Leçon(s) déjà achetée(s)' : 
+                    (hasLessonInCart ? 'Leçons dans le panier' : 
+                    (isCursusInCart ? 'Déjà dans le panier' : 'Acheter le cursus')))}
                 </button>
             </div>
 
@@ -209,17 +229,16 @@ function CursusPage() {
             <div className="space-y-4">
                 {lessonsList
                 .sort((a, b) => (a.order || 0) - (b.order || 0))
-                .map((lesson, index) => { 
-                    const isLessonPurchased = purchasedLessons.includes(lesson.id) || isPurchased;
-                    const isEntireCursusInCart = cart.some(item => item.cursusId === cursusIdInt && !item.lessonId);
-                    const isInCart = cart.some(item => item.lessonId === lesson.id) || isEntireCursusInCart; 
+                .map((lesson, index) => {
+                    const isLessonPurchased = purchasedLessons.includes(lesson.id) || isCursusPurchased;
+                    const isInCart = cart.some(item => item.lessonId === lesson.id) || isCursusInCart;
                     const disableLessonButton = isLessonPurchased || isInCart;
 
                     return (
                         <div key={lesson.id} className="border p-4 rounded-xl bg-white shadow-sm hover:shadow-md transition duration-150 flex justify-between items-center">
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-700">
-                                    <span className="text-indigo-500 mr-2">#{index + 1}</span> 
+                                    <span className="text-indigo-500 mr-2">#{index + 1}</span>
                                     {lesson.title}
                                 </h3>
                                 <p className="text-sm text-gray-500 mt-1">{lesson.description}</p>
@@ -227,11 +246,11 @@ function CursusPage() {
                                     Prix unitaire : {lesson.prix} €
                                 </p>
                             </div>
-                            
+
                             <div>
                                 {isLessonPurchased ? (
-                                    <Link 
-                                        to={`/lessons/${lesson.id}`} 
+                                    <Link
+                                        to={`/lessons/${lesson.id}`}
                                         className="inline-block px-4 py-2 bg-green-500 text-white font-medium rounded-full hover:bg-green-600 transition"
                                     >
                                         Accéder à la leçon
@@ -242,9 +261,9 @@ function CursusPage() {
                                         className={`px-4 py-2 font-medium rounded-full transition duration-150
                                             ${disableLessonButton ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md'}
                                         `}
-                                        disabled={isLessonPurchased || isInCart}
+                                        disabled={disableLessonButton}
                                     >
-                                        {isEntireCursusInCart ? 'Cursus complet dans panier' : 
+                                        {isCursusInCart ? 'Cursus complet dans panier' :
                                         (isInCart ? 'Dans le panier' : 'Acheter la leçon')}
                                     </button>
                                 )}

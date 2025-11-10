@@ -1,4 +1,3 @@
-// src/pages/Cart.js
 import React, { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -7,12 +6,11 @@ import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { useNavigate } from 'react-router-dom';
 import { ShoppingCart, Trash2, Mail, X, CheckCircle, Loader } from 'lucide-react';
 
-// URL API (même que AuthContext)
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 function Cart() {
     const { cart, clearCart, removeFromCart, total } = useCart();
-    const { user } = useAuth();
+    const { user, fetchUserAndRefresh } = useAuth(); // 👈 récupération du user + refresh
     const [email, setEmail] = useState('');
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
@@ -61,6 +59,7 @@ function Cart() {
             }
 
             if (result.paymentIntent.status === 'succeeded') {
+                // ✅ Étape 1 : confirme côté serveur
                 await axios.post(`${API_URL}/api/achats/confirm-payment`, {
                     paymentIntentId: result.paymentIntent.id,
                     userId: user.id,
@@ -68,12 +67,19 @@ function Cart() {
                     lessonIds
                 }, { withCredentials: true });
 
+                // ✅ Étape 2 : recharge le user (achats mis à jour)
+                await fetchUserAndRefresh();
+
+                // ✅ Étape 3 : indique le succès et vide le panier
                 setSuccess(true);
                 clearCart();
-                setTimeout(() => navigate('/profile'), 3000);
+
+                // ✅ Étape 4 : redirige immédiatement vers /profile
+                navigate('/profile');
             }
         } catch (err) {
-            setError(err.response?.data?.error || 'Erreur paiement.');
+            console.error("Erreur paiement:", err);
+            setError(err.response?.data?.error || 'Erreur de paiement. Veuillez réessayer.');
         } finally {
             setLoading(false);
         }

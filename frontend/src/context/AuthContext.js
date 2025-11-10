@@ -3,7 +3,6 @@ import axios from 'axios';
 import { Loader2 } from 'lucide-react';
 
 // --- CONFIGURATION DE L'URL API ---
-// Utilise la variable d'environnement Vercel si elle existe, sinon utilise localhost pour le dev local.
 const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000'; 
 
 // --- GESTION DU TOKEN EN MÉMOIRE ---
@@ -14,7 +13,7 @@ const setInMemoryToken = (token) => {
 };
 
 axios.defaults.withCredentials = true;
-axios.defaults.baseURL = BASE_URL; // <-- CORRECTION APPLIQUÉE ICI
+axios.defaults.baseURL = BASE_URL;
 
 // INTERCEPTEUR DE REQUÊTE
 axios.interceptors.request.use(
@@ -23,7 +22,6 @@ axios.interceptors.request.use(
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
-        // Pour la requête de rafraîchissement, le token est envoyé par cookie HTTP-Only, pas par header d'autorisation.
         if (config.url === '/api/auth/refresh') {
             delete config.headers.Authorization;
         }
@@ -43,27 +41,22 @@ axios.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
         
-        // Si c'est l'appel refresh qui a échoué avec 401, on déconnecte
         if (originalRequest.url === '/api/auth/refresh' && error.response?.status === 401) {
             handleRefreshFailure();
             return Promise.reject(error);
         }
 
-        // Si ce n'est pas une erreur 401 (non autorisé) ou si la requête a déjà été réessayée, on la rejette
         if (error.response?.status !== 401 || originalRequest._retry) {
             return Promise.reject(error);
         }
 
-        // Marque la requête pour éviter les boucles infinies de rafraîchissement
         originalRequest._retry = true;
 
         try {
-            // Tente de rafraîchir le token
             const res = await axios.post('/api/auth/refresh');
             const newToken = res.data.accessToken;
             setInMemoryToken(newToken);
             
-            // Réapplique le nouveau token à la requête originale et la ré-exécute
             originalRequest.headers.Authorization = `Bearer ${newToken}`;
             return axios(originalRequest);
         } catch (refreshError) {
@@ -99,16 +92,13 @@ export const AuthProvider = ({ children }) => {
         setIsLoading(true);
 
         try {
-            // 1. Rafraîchissement du token et récupération du nouveau token
             const res = await axios.post('/api/auth/refresh');
             const newToken = res.data.accessToken;
             setInMemoryToken(newToken);
 
-            // 2. Récupération des données utilisateur
             const userRes = await axios.get('/api/auth/me');
             const userData = userRes.data.user;
 
-            // 3. CHARGEMENT DES ACHATS
             let ownedCurricula = [];
             let ownedCourses = [];
 
@@ -126,7 +116,6 @@ export const AuthProvider = ({ children }) => {
                     });
                 });
 
-                // Si un cursus est acheté → toutes ses leçons sont possédées
                 for (const cursusId of ownedCurricula) {
                     try {
                         const cursusRes = await axios.get(`/api/cursus/${cursusId}`);
@@ -180,8 +169,9 @@ export const AuthProvider = ({ children }) => {
         );
     }
 
+    // ✅ Seul changement ici : ajout de fetchUserAndRefresh dans la valeur du contexte
     return (
-        <AuthContext.Provider value={{ user, login, logout }}>
+        <AuthContext.Provider value={{ user, login, logout, fetchUserAndRefresh }}>
             {children}
         </AuthContext.Provider>
     );

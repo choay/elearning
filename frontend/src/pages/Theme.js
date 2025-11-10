@@ -1,4 +1,4 @@
-// src/pages/Theme.js – DESIGN CORRIGÉ (titre ne touche PLUS le header)
+// src/pages/Theme.js – VERSION FINALE : Fonctionne avec 1 ou 100 cursus
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -21,14 +21,32 @@ function Theme() {
     const fetchTheme = async () => {
       try {
         const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/themes/${themeId}`);
-        setCursusList(response.data.Cursus || []);
+        const rawCursus = response.data.Cursus || [];
         setThemeTitle(response.data.title || '');
+
+        // CHARGE LES LEÇONS DE CHAQUE CURSUS INDÉPENDAMMENT
+        const cursusWithLessons = await Promise.all(
+          rawCursus.map(async (c) => {
+            let lessons = [];
+            try {
+              const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/cursus/${c.id}`);
+              lessons = res.data.CourseLessons || [];
+            } catch (err) {
+              console.warn(`Leçons non chargées pour cursus ${c.id} → on continue`);
+            }
+            return { ...c, CourseLessons: lessons };
+          })
+        );
+
+        setCursusList(cursusWithLessons);
       } catch (err) {
+        console.error('Erreur chargement thème:', err);
         setError('Erreur lors du chargement du thème.');
       } finally {
         setLoading(false);
       }
     };
+
     fetchTheme();
   }, [themeId]);
 
@@ -37,6 +55,36 @@ function Theme() {
       setMessage('Veuillez vous connecter pour ajouter au panier.');
       setTimeout(() => setMessage(''), 5000);
       navigate('/login');
+      return;
+    }
+
+    const cursusId = cursusItem.id;
+
+    // 1. Cursus déjà acheté
+    if (user.ownedCurricula?.includes(cursusId)) {
+      setMessage('Ce cursus est déjà acheté.');
+      setTimeout(() => setMessage(''), 5000);
+      return;
+    }
+
+    // 2. Une leçon du cursus est déjà achetée
+    if (cursusItem.CourseLessons?.some(lesson => user?.ownedCourses?.includes(lesson.id))) {
+      setMessage('Une leçon de ce cursus est déjà achetée → impossible d’ajouter le pack.');
+      setTimeout(() => setMessage(''), 5000);
+      return;
+    }
+
+    // 3. Une leçon du cursus est dans le panier
+    if (cart.some(item => item.cursusId === cursusId && item.productType === 'lesson')) {
+      setMessage('Une leçon de ce cursus est déjà dans le panier.');
+      setTimeout(() => setMessage(''), 5000);
+      return;
+    }
+
+    // 4. Cursus déjà dans le panier
+    if (cart.some(item => item.productType === 'cursus' && item.productId === cursusId)) {
+      setMessage('Ce cursus est déjà dans le panier.');
+      setTimeout(() => setMessage(''), 5000);
       return;
     }
 
@@ -84,32 +132,42 @@ function Theme() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
         {cursusList.map((cursusItem) => {
-          const isPurchased = user?.ownedCurricula?.includes(cursusItem.id) || false;
-          const isInCart = cart.some(item => item.productType === 'cursus' && item.productId === cursusItem.id);
-          const hasLessonInCart = cart.some(item => item.cursusId === cursusItem.id && item.productType === 'lesson');
+          const cursusId = cursusItem.id;
+          const isPurchased = user?.ownedCurricula?.includes(cursusId) || false;
+          const isInCart = cart.some(item => item.productType === 'cursus' && item.productId === cursusId);
+          const hasLessonInCart = cart.some(item => item.cursusId === cursusId && item.productType === 'lesson');
+          const hasLessonPurchased = cursusItem.CourseLessons?.some(lesson => user?.ownedCourses?.includes(lesson.id)) || false;
 
           let buttonText = 'Ajouter au panier';
           let buttonStyle = { backgroundColor: '#0074c7' };
+          let disabled = false;
 
           if (isPurchased) {
             buttonText = 'Déjà acheté (Accéder)';
             buttonStyle = { backgroundColor: '#00497c' };
+            disabled = true;
+          } else if (hasLessonPurchased) {
+            buttonText = 'Leçon déjà achetée';
+            buttonStyle = { backgroundColor: '#cd2c2e', opacity: 0.8 };
+            disabled = true;
           } else if (hasLessonInCart) {
             buttonText = 'Leçon dans le panier';
             buttonStyle = { backgroundColor: '#384050', opacity: 0.6, cursor: 'not-allowed' };
+            disabled = true;
           } else if (isInCart) {
             buttonText = 'Déjà dans le panier';
             buttonStyle = { backgroundColor: '#00497c' };
+            disabled = true;
           } else if (!user) {
             buttonText = 'Se connecter pour acheter';
             buttonStyle = { backgroundColor: '#cd2c2e' };
           }
 
           return (
-            <div 
-              key={cursusItem.id} 
+            <div
+              key={cursusItem.id}
               className="rounded-2xl shadow-xl overflow-hidden transition-all duration-300 transform hover:scale-[1.03] hover:shadow-2xl flex flex-col"
-              style={{ backgroundColor: '#384050' }} 
+              style={{ backgroundColor: '#384050' }}
             >
               <div className="p-6 flex justify-center items-center h-32" style={{ backgroundColor: '#f1f8fc' }}>
                 <span className="text-5xl font-extrabold" style={{ color: '#0074c7' }}>
@@ -138,7 +196,7 @@ function Theme() {
                   onClick={() => {
                     if (isPurchased) {
                       navigate(`/cursus/${cursusItem.id}`);
-                    } else if (!isInCart && !hasLessonInCart && user) {
+                    } else if (!disabled && user) {
                       handleAddToCart(cursusItem);
                     } else if (!user) {
                       navigate('/login');
@@ -146,7 +204,7 @@ function Theme() {
                   }}
                   className="w-full py-3 mt-auto font-semibold rounded-lg text-white transition duration-300"
                   style={buttonStyle}
-                  disabled={isPurchased || isInCart || hasLessonInCart}
+                  disabled={disabled}
                 >
                   {buttonText}
                 </button>
