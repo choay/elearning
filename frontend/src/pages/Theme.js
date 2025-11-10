@@ -1,4 +1,4 @@
-// src/pages/Theme.js – DESIGN CORRIGÉ (titre ne touche plus le header)
+// src/pages/Theme.js – DESIGN CORRIGÉ (titre ne touche PLUS le header)
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -57,7 +57,7 @@ function Theme() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center pt-24">
+      <div className="flex items-center justify-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-4" style={{ borderColor: '#0074c7' }}></div>
         <p className="ml-4 text-xl" style={{ color: '#384050' }}>Chargement...</p>
       </div>
@@ -69,7 +69,7 @@ function Theme() {
   }
 
   return (
-    <div className="min-h-screen p-8 md:p-12 lg:p-16 pt-32" style={{ backgroundColor: '#f1f8fc' }}>
+    <div className="p-8 md:p-12 lg:p-16" style={{ backgroundColor: '#f1f8fc' }}>
       {message && (
         <div className={`fixed top-4 right-4 z-50 p-4 rounded-xl shadow-xl font-medium text-white`}
           style={{ backgroundColor: message.includes('ajouté') ? '#0074c7' : '#cd2c2e' }}
