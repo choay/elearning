@@ -90,7 +90,6 @@ exports.login = async (req, res) => {
         secure: true,
         sameSite: 'None',
         path: '/',
-        domain: '.onrender.com',
         maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
@@ -123,7 +122,6 @@ exports.refresh = async (req, res) => {
             secure: true,
             sameSite: 'None',
             path: '/',
-            domain: '.onrender.com',
             maxAge: 7 * 24 * 60 * 60 * 1000
         });
 
@@ -133,8 +131,7 @@ exports.refresh = async (req, res) => {
             httpOnly: true,
             secure: true,
             sameSite: 'None',
-            path: '/',
-            domain: '.onrender.com'
+            path: '/'
         });
         res.status(403).json({ message: 'Session expirée. Reconnectez-vous.' });
     }
@@ -149,8 +146,7 @@ exports.logout = (req, res) => {
         httpOnly: true,
         secure: true,
         sameSite: 'None',
-        path: '/',
-        domain: '.onrender.com'
+        path: '/'
     });
     res.json({ message: 'Déconnexion réussie.' });
 };
