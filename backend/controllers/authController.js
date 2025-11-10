@@ -2,11 +2,12 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { validationResult } = require('express-validator');
-const nodemailer = require('nodemailer');
 const { Op } = require('sequelize');
 const { User } = require('../models');
+const sendActivationEmail = require('../utils/sendEmail'); // NOUVELLE IMPORTATION
 require('dotenv').config();
 
+// Génère les tokens JWT
 const generateTokens = (userId) => {
     const payload = { userId };
     const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '15m' });
@@ -15,50 +16,55 @@ const generateTokens = (userId) => {
     return { accessToken, refreshToken };
 };
 
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASS },
-    tls: { rejectUnauthorized: false }
-});
-
-const sendActivationEmail = async (email, activationToken) => {
-    const link = `${process.env.API_URL}/api/auth/activate/${activationToken}`;
-    await transporter.sendMail({
-        from: process.env.GMAIL_USER,
-        to: email,
-        subject: 'Activez votre compte',
-        html: `<p>Cliquez <a href="${link}">ici</a> pour activer votre compte.</p>`
-    });
-};
-
+// INSCRIPTION
 exports.register = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
     const { email, password } = req.body;
+
+    // Vérifie si l'email existe déjà
     if (await User.findOne({ where: { email } })) {
         return res.status(400).json({ message: 'Email déjà utilisé.' });
     }
 
+    // Hash du mot de passe
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Génère un token d'activation
     const activationToken = crypto.randomBytes(32).toString('hex');
 
+    // Crée l'utilisateur
     await User.create({
         email,
         password: hashedPassword,
         activationToken,
-        activationExpires: Date.now() + 3600000,
+        activationExpires: Date.now() + 3600000, // 1 heure
         isActive: false
     });
 
-    await sendActivationEmail(email, activationToken);
-    res.status(201).json({ message: 'Inscription OK. Vérifiez vos emails.' });
+    // ENVOI EMAIL AVEC SENDGRID
+    try {
+        await sendActivationEmail(email, activationToken);
+        res.status(201).json({ 
+            message: 'Inscription réussie ! Vérifiez votre email pour activer votre compte.' 
+        });
+    } catch (error) {
+        console.error('Échec envoi email:', error);
+        res.status(500).json({ 
+            message: 'Inscription enregistrée, mais échec envoi email. Contactez le support.' 
+        });
+    }
 };
 
+// ACTIVATION DE COMPTE
 exports.activateAccount = async (req, res) => {
     const { token } = req.params;
     const user = await User.findOne({
-        where: { activationToken: token, activationExpires: { [Op.gt]: Date.now() } }
+        where: { 
+            activationToken: token, 
+            activationExpires: { [Op.gt]: Date.now() } 
+        }
     });
 
     if (!user) return res.status(400).json({ message: 'Lien invalide ou expiré.' });
@@ -71,6 +77,7 @@ exports.activateAccount = async (req, res) => {
     res.json({ message: 'Compte activé ! Vous pouvez vous connecter.' });
 };
 
+// CONNEXION
 exports.login = async (req, res) => {
     const { email, password } = req.body;
     const user = await User.findOne({ where: { email } });
@@ -100,6 +107,7 @@ exports.login = async (req, res) => {
     });
 };
 
+// REFRESH TOKEN
 exports.refresh = async (req, res) => {
     const refreshToken = req.cookies.refreshToken;
     if (!refreshToken) return res.status(401).json({ message: 'Non autorisé.' });
@@ -109,10 +117,7 @@ exports.refresh = async (req, res) => {
         const user = await User.findByPk(decoded.userId);
         if (!user || !user.isActive) throw new Error();
 
-        let tokenPayload;
-        try {
-            tokenPayload = jwt.decode(refreshToken);
-        } catch (e) { throw new Error(); }
+        const tokenPayload = jwt.decode(refreshToken);
         if (tokenPayload.jti !== decoded.jti) throw new Error();
 
         const { accessToken: newAccessToken, refreshToken: newRefreshToken } = generateTokens(user.id);
@@ -137,10 +142,12 @@ exports.refresh = async (req, res) => {
     }
 };
 
+// UTILISATEUR ACTUEL
 exports.getCurrentUser = async (req, res) => {
     res.json({ user: req.user });
 };
 
+// DÉCONNEXION
 exports.logout = (req, res) => {
     res.clearCookie('refreshToken', {
         httpOnly: true,
