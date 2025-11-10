@@ -1,15 +1,14 @@
-// src/pages/Theme.js – VERSION 100% FONCTIONNELLE (UTILISE useAuth())
-
+// src/pages/Theme.js – DESIGN CORRIGÉ (titre ne touche plus le header)
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useCart } from '../context/CartContext';
-import { useAuth } from '../context/AuthContext'; // OBLIGATOIRE
+import { useAuth } from '../context/AuthContext';
 
 function Theme() {
   const { themeId } = useParams();
   const { cart, addToCart } = useCart();
-  const { user } = useAuth(); // ON UTILISE LE VRAI USER AVEC LES ACHATS
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [cursusList, setCursusList] = useState([]);
@@ -18,7 +17,6 @@ function Theme() {
   const [message, setMessage] = useState('');
   const [themeTitle, setThemeTitle] = useState('');
 
-  // CHARGEMENT DU THÈME
   useEffect(() => {
     const fetchTheme = async () => {
       try {
@@ -34,7 +32,6 @@ function Theme() {
     fetchTheme();
   }, [themeId]);
 
-  // FONCTION AJOUT AU PANIER
   const handleAddToCart = (cursusItem) => {
     if (!user) {
       setMessage('Veuillez vous connecter pour ajouter au panier.');
@@ -72,7 +69,7 @@ function Theme() {
   }
 
   return (
-    <div className="min-h-screen p-8 md:p-12 lg:p-16 pt-24" style={{ backgroundColor: '#f1f8fc' }}>
+    <div className="min-h-screen p-8 md:p-12 lg:p-16 pt-32" style={{ backgroundColor: '#f1f8fc' }}>
       {message && (
         <div className={`fixed top-4 right-4 z-50 p-4 rounded-xl shadow-xl font-medium text-white`}
           style={{ backgroundColor: message.includes('ajouté') ? '#0074c7' : '#cd2c2e' }}
@@ -87,12 +84,10 @@ function Theme() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
         {cursusList.map((cursusItem) => {
-          // VÉRIFICATIONS 100% FIABLES
           const isPurchased = user?.ownedCurricula?.includes(cursusItem.id) || false;
           const isInCart = cart.some(item => item.productType === 'cursus' && item.productId === cursusItem.id);
           const hasLessonInCart = cart.some(item => item.cursusId === cursusItem.id && item.productType === 'lesson');
 
-          // TEXTE ET STYLE DU BOUTON
           let buttonText = 'Ajouter au panier';
           let buttonStyle = { backgroundColor: '#0074c7' };
 
