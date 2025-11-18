@@ -1,3 +1,4 @@
+// server.js
 require('dotenv').config();
 const http = require('http');
 const app = require('./app');
@@ -50,12 +51,12 @@ async function trySyncWithRetry({ maxAttempts = 5, baseDelayMs = 1000 } = {}) {
       if (shouldForceSync) {
         console.log('🔁 RECREATE_DB=true : force sync (force: true)');
         await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
-        await sequelize.sync({ alter: true });
+        await sequelize.sync();
         await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
         console.log('🗃️ Base de données recréée avec succès !');
       } else {
-        await sequelize.sync();
-        console.log('🗃️ Base de données synchronisée en toute sécurité.');
+        await sequelize.sync(); // Production safe, ou migrations préférables
+        console.log('🗃️ Base de données synchronisée.');
       }
       return;
     } catch (err) {
@@ -76,11 +77,9 @@ const errorHandler = error => {
     case 'EACCES':
       console.error(`${bind} nécessite des privilèges élevés.`);
       process.exit(1);
-      break;
     case 'EADDRINUSE':
       console.error(`${bind} est déjà utilisé.`);
       process.exit(1);
-      break;
     default:
       throw error;
   }
