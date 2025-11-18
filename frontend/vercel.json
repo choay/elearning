@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "https://backend-c8qs.onrender.com",
+      "headers": {
+        "Cache-Control": "no-cache"
+      }
+    },
+    {
+      "src": "/((?!static|favicon.ico).*)",
+      "dest": "/index.html"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+/* src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  padding-top: 0rem; /* 80px = hauteur du header */
+  font-family: system-ui, -apple-system, sans-serif;
+}

@@ -1,0 +1,40 @@
+# -----------------------------------------------------------
+# FICHIERS & DOSSIERS GLOBAUX À IGNORER
+# -----------------------------------------------------------
+
+# Dépendances Node (Très important : à ignorer partout)
+node_modules
+
+# Fichiers d'environnement contenant les secrets (Crucial !)
+.env
+.env.local
+.env.*.local
+.DS_Store # Fichiers macOS
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# -----------------------------------------------------------
+# FICHIERS SPÉCIFIQUES AU BACKEND
+# -----------------------------------------------------------
+
+# Dossiers générés (si vous utilisez un processus de compilation dans le backend)
+backend/dist
+backend/build
+
+# Logs et uploads
+backend/logs/
+backend/uploads/
+
+# -----------------------------------------------------------
+# FICHIERS SPÉCIFIQUES AU FRONTEND
+# -----------------------------------------------------------
+
+# Dossiers de sortie de la compilation (React build)
+frontend/build
+frontend/dist
+frontend/out
+
+# Fichiers de cache et de configuration d'IDE
+.vscode/
+.idea/
