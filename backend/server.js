@@ -19,15 +19,12 @@ console.log('JWT_REFRESH_SECRET →', process.env.JWT_REFRESH_SECRET ? 'OK' : 'M
 
 let server;
 
-/**
- * Log function to print details from Sequelize errors when available
- */
 function logSequelizeError(err) {
-  console.error('Error name:', err && err.name);
-  if (err && err.message) console.error('Message:', err.message);
-  if (err && err.sql) console.error('SQL:', err.sql);
-  if (err && err.parameters) console.error('Parameters:', err.parameters);
-  if (err && err.parent) {
+  console.error('Error name:', err?.name);
+  if (err?.message) console.error('Message:', err.message);
+  if (err?.sql) console.error('SQL:', err.sql);
+  if (err?.parameters) console.error('Parameters:', err.parameters);
+  if (err?.parent) {
     const p = err.parent;
     console.error('Parent error details:', {
       code: p.code,
@@ -39,16 +36,9 @@ function logSequelizeError(err) {
   }
 }
 
-/**
- * Try to authenticate and sync DB with retry/backoff.
- * In production you should NOT use sync({ alter: true }) — use migrations instead.
- */
 async function trySyncWithRetry({ maxAttempts = 5, baseDelayMs = 1000 } = {}) {
   let attempt = 0;
-
-  const shouldForceSync =
-    process.env.NODE_ENV !== 'production' &&
-    process.env.RECREATE_DB === 'true';
+  const shouldForceSync = process.env.NODE_ENV !== 'production' && process.env.RECREATE_DB === 'true';
 
   while (attempt < maxAttempts) {
     attempt++;
@@ -60,32 +50,18 @@ async function trySyncWithRetry({ maxAttempts = 5, baseDelayMs = 1000 } = {}) {
       if (shouldForceSync) {
         console.log('🔁 RECREATE_DB=true : force sync (force: true)');
         await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
-        sequelize.sync({ alter: process.env.NODE_ENV !== "production" });
-
+        await sequelize.sync({ alter: true });
         await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
         console.log('🗃️ Base de données recréée avec succès !');
-        // Option: seeding area (uncomment if you have seed scripts)
-        // const { seedDatabase } = require('./seed');
-        // await seedDatabase();
       } else {
-        // WARNING: alter can run ALTER TABLE operations; prefer migrations in prod.
-        console.log('🔄 Synchronisation Sequelize (alter: true) — si production, remplacez par des migrations.');
-        await sequelize.sync({ alter: true });
-        console.log('🗃️ Base de données synchronisée (alter: true).');
+        await sequelize.sync();
+        console.log('🗃️ Base de données synchronisée en toute sécurité.');
       }
-
-      // If we get here, sync succeeded
       return;
     } catch (err) {
       console.error(`❌ Erreur DB (attempt ${attempt}):`);
       logSequelizeError(err);
-
-      if (attempt >= maxAttempts) {
-        console.error('Nombre max de tentatives atteint. Abandon.');
-        throw err;
-      }
-
-      // Exponential backoff
+      if (attempt >= maxAttempts) throw err;
       const delay = baseDelayMs * Math.pow(2, attempt - 1);
       console.log(`Attente ${delay}ms avant nouvelle tentative...`);
       await new Promise(res => setTimeout(res, delay));
@@ -113,42 +89,27 @@ const errorHandler = error => {
 async function initServer() {
   try {
     await trySyncWithRetry({ maxAttempts: 5, baseDelayMs: 1000 });
-
     server = http.createServer(app);
-
     server.on('error', errorHandler);
     server.on('listening', () => {
       const address = server.address();
-      const bind =
-        typeof address === 'string' ? 'pipe ' + address : 'port ' + port;
+      const bind = typeof address === 'string' ? 'pipe ' + address : 'port ' + port;
       console.log(`🚀 Serveur lancé sur ${bind}`);
     });
-
     server.listen(port);
   } catch (err) {
-    console.error('❌ FATAL : Impossible de connecter ou synchroniser la DB. Erreur finale :');
+    console.error('❌ FATAL : Impossible de connecter ou synchroniser la DB.');
     logSequelizeError(err);
-    // On exit pour signaler échec au superviseur (pm2/systemd) :
     process.exit(1);
   }
 }
 
-/**
- * Graceful shutdown helpers
- */
 async function gracefulShutdown(signal) {
   console.log(`\nReçu ${signal} — arrêt propre en cours...`);
   try {
-    if (server && server.close) {
-      await new Promise(resolve => server.close(resolve));
-      console.log('HTTP server fermé.');
-    }
-    try {
-      await sequelize.close();
-      console.log('Connexion Sequelize fermée.');
-    } catch (e) {
-      console.warn('Erreur lors de la fermeture de Sequelize:', e && e.message);
-    }
+    if (server?.close) await new Promise(resolve => server.close(resolve));
+    await sequelize.close();
+    console.log('HTTP server et Sequelize fermés.');
     process.exit(0);
   } catch (err) {
     console.error('Erreur durant l\'arrêt propre:', err);
@@ -156,16 +117,8 @@ async function gracefulShutdown(signal) {
   }
 }
 
-/**
- * Catch global errors to aid debugging
- */
-process.on('unhandledRejection', (reason, p) => {
-  console.error('Unhandled Rejection at:', p, 'reason:', reason);
-});
-process.on('uncaughtException', err => {
-  console.error('Uncaught Exception thrown:', err);
-});
-
+process.on('unhandledRejection', (reason, p) => console.error('Unhandled Rejection at:', p, 'reason:', reason));
+process.on('uncaughtException', err => console.error('Uncaught Exception thrown:', err));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
