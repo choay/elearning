@@ -4,14 +4,14 @@ import { jwtDecode } from 'jwt-decode';
 
 export const AuthContext = createContext();
 
-const API_URL = process.env.REACT_APP_API_URL || ''; // ex: 'https://ton-backend.onrender.com'
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const api = axios.create({
   baseURL: API_URL,
-  withCredentials: true,
+  withCredentials: true, // important pour envoyer les cookies
 });
 
-// Interceptor: refresh token once on 401 (graceful)
+// --- Interceptor pour refresh token ---
 let isRefreshing = false;
 let refreshPromise = null;
 
@@ -40,7 +40,7 @@ api.interceptors.response.use(
           const token = res.data?.accessToken;
           if (token) {
             api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-            try { document.cookie = `accessToken=${token}; path=/;`; } catch (e) {}
+            try { document.cookie = `accessToken=${token}; path=/;`; } catch {}
             return token;
           }
           throw new Error('No token from refresh');
@@ -87,7 +87,7 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setAccessToken(null);
       applyAuthHeader(null);
-      try { document.cookie = 'accessToken=; path=/; max-age=0'; } catch (e) {}
+      try { document.cookie = 'accessToken=; path=/; max-age=0'; } catch {}
       return;
     }
     const payload = decodeToken(token);
@@ -106,20 +106,19 @@ export const AuthProvider = ({ children }) => {
     const res = await api.post('/api/auth/login', { email, password });
     const token = res.data?.accessToken;
     if (token) {
-      try { document.cookie = `accessToken=${token}; path=/;`; } catch (e) {}
+      try { document.cookie = `accessToken=${token}; path=/;`; } catch {}
       setUserFromToken(token);
-      // fetchUserAndRefresh will be triggered by useEffect on accessToken change
     }
     return res.data;
   };
 
   const logout = async (redirect = false) => {
-    try { await api.post('/api/auth/logout'); } catch (e) {}
+    try { await api.post('/api/auth/logout'); } catch {}
     setUser(null);
     setAccessToken(null);
     applyAuthHeader(null);
-    try { document.cookie = 'accessToken=; path=/; max-age=0'; } catch (e) {}
-    if (redirect) { try { window.location.href = '/login'; } catch (e) {} }
+    try { document.cookie = 'accessToken=; path=/; max-age=0'; } catch {}
+    if (redirect) { try { window.location.href = '/login'; } catch {} }
   };
 
   const refresh = useCallback(async () => {
@@ -129,18 +128,19 @@ export const AuthProvider = ({ children }) => {
       if (token) {
         applyAuthHeader(token);
         setAccessToken(token);
-        try { document.cookie = `accessToken=${token}; path=/;`; } catch (e) {}
+        try { document.cookie = `accessToken=${token}; path=/;`; } catch {}
         return token;
       }
       return null;
     } catch (err) {
       applyAuthHeader(null);
       setAccessToken(null);
-      try { document.cookie = 'accessToken=; path=/; max-age=0'; } catch (e) {}
+      try { document.cookie = 'accessToken=; path=/; max-age=0'; } catch {}
       return null;
     }
   }, []);
 
+  // --- Gestion des achats et cursus ---
   const fetchPurchasesForUser = useCallback(async (userId) => {
     try {
       const res = await api.get(`/api/users/${userId}/purchased-content`, { params: { t: Date.now() } });
@@ -177,10 +177,7 @@ export const AuthProvider = ({ children }) => {
     if (!Array.isArray(purchasedCursusIds) || purchasedCursusIds.length === 0) return [];
     try {
       const promises = purchasedCursusIds.map(id =>
-        api.get(`/api/cursus/${id}`, { params: { t: Date.now() } }).then(r => r.data).catch(err => {
-          console.warn('[Auth] enrich: failed to fetch cursus', id, err?.message ?? err);
-          return null;
-        })
+        api.get(`/api/cursus/${id}`, { params: { t: Date.now() } }).then(r => r.data).catch(() => null)
       );
       const cursusDatas = await Promise.all(promises);
       const lessonIdsSet = new Set();
@@ -188,14 +185,12 @@ export const AuthProvider = ({ children }) => {
         if (!c) continue;
         const lessons = c.CourseLessons || c.Lessons || c.courseLessons || c.lessons || [];
         for (const l of lessons) {
-          if (!l) continue;
           const lid = Number(l.id ?? l.lessonId ?? l.idLesson);
           if (!Number.isNaN(lid)) lessonIdsSet.add(lid);
         }
       }
       return Array.from(lessonIdsSet).map(Number);
-    } catch (err) {
-      console.warn('[Auth] enrichPurchasedLessonsFromCursus failed:', err?.message ?? err);
+    } catch {
       return [];
     }
   }, []);
@@ -207,58 +202,25 @@ export const AuthProvider = ({ children }) => {
       if (!token) { setUser(null); return; }
 
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
       try {
         const resp = await api.get('/api/auth/me');
         const serverUser = resp.data?.user ?? null;
         if (serverUser) {
-          const purchases = await fetchPurchasesForUser(serverUser.id).catch(() => ({ items: [], purchasedLessonIds: [], purchasedCursusIds: [] }));
-          const lessonIdsFromCursus = await enrichPurchasedLessonsFromCursus(purchases.purchasedCursusIds).catch(() => []);
+          const purchases = await fetchPurchasesForUser(serverUser.id);
+          const lessonIdsFromCursus = await enrichPurchasedLessonsFromCursus(purchases.purchasedCursusIds);
           const allPurchasedLessonIds = Array.from(new Set([...(purchases.purchasedLessonIds || []).map(Number), ...lessonIdsFromCursus.map(Number)]));
-
-          setUser({
-            ...serverUser,
-            purchasedItems: purchases.items,
-            purchasedLessonIds: allPurchasedLessonIds,
-            purchasedCursusIds: Array.from(new Set((purchases.purchasedCursusIds || []).map(Number))),
-          });
+          setUser({ ...serverUser, purchasedItems: purchases.items, purchasedLessonIds: allPurchasedLessonIds, purchasedCursusIds: Array.from(new Set((purchases.purchasedCursusIds || []).map(Number))) });
         } else {
           const payload = decodeToken(token);
-          const baseUser = payload ? { id: payload.id, email: payload.email, role: payload.role } : null;
-          if (baseUser && baseUser.id) {
-            const purchases = await fetchPurchasesForUser(baseUser.id).catch(() => ({ items: [], purchasedLessonIds: [], purchasedCursusIds: [] }));
-            const lessonIdsFromCursus = await enrichPurchasedLessonsFromCursus(purchases.purchasedCursusIds).catch(() => []);
+          if (payload && payload.id) {
+            const purchases = await fetchPurchasesForUser(payload.id);
+            const lessonIdsFromCursus = await enrichPurchasedLessonsFromCursus(purchases.purchasedCursusIds);
             const allPurchasedLessonIds = Array.from(new Set([...(purchases.purchasedLessonIds || []).map(Number), ...lessonIdsFromCursus.map(Number)]));
-
-            setUser({
-              ...baseUser,
-              purchasedItems: purchases.items,
-              purchasedLessonIds: allPurchasedLessonIds,
-              purchasedCursusIds: Array.from(new Set((purchases.purchasedCursusIds || []).map(Number))),
-            });
-          } else {
-            setUser(null);
-          }
+            setUser({ id: payload.id, email: payload.email, role: payload.role, purchasedItems: purchases.items, purchasedLessonIds: allPurchasedLessonIds, purchasedCursusIds: Array.from(new Set((purchases.purchasedCursusIds || []).map(Number))) });
+          } else setUser(null);
         }
-      } catch (err) {
-        console.warn('/me failed after refresh:', err?.response?.status, err?.response?.data);
-        const payload = decodeToken(token);
-        if (payload && payload.id) {
-          const purchases = await fetchPurchasesForUser(payload.id).catch(() => ({ items: [], purchasedLessonIds: [], purchasedCursusIds: [] }));
-          const lessonIdsFromCursus = await enrichPurchasedLessonsFromCursus(purchases.purchasedCursusIds).catch(() => []);
-          const allPurchasedLessonIds = Array.from(new Set([...(purchases.purchasedLessonIds || []).map(Number), ...lessonIdsFromCursus.map(Number)]));
-
-          setUser({
-            id: payload.id,
-            email: payload.email,
-            role: payload.role,
-            purchasedItems: purchases.items,
-            purchasedLessonIds: allPurchasedLessonIds,
-            purchasedCursusIds: Array.from(new Set((purchases.purchasedCursusIds || []).map(Number))),
-          });
-        } else {
-          setUser(null);
-        }
+      } catch {
+        setUser(null);
       }
     } finally {
       setIsPurchasesLoading(false);
@@ -267,69 +229,31 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     let mounted = true;
-    (async () => {
-      try { await fetchUserAndRefresh(); } finally { if (mounted) setIsLoading(false); }
-    })();
+    (async () => { try { await fetchUserAndRefresh(); } finally { if (mounted) setIsLoading(false); } })();
     return () => { mounted = false; };
   }, [fetchUserAndRefresh]);
 
-  // When accessToken changes (login), refresh the full user state
   useEffect(() => {
     if (!accessToken) return;
-    fetchUserAndRefresh().catch(err => {
-      console.warn('fetchUserAndRefresh on accessToken change failed:', err);
-    });
+    fetchUserAndRefresh().catch(console.warn);
   }, [accessToken, fetchUserAndRefresh]);
 
   const isLessonOwned = useCallback((lessonId) => {
     if (!user) return false;
     const id = Number(lessonId);
     if (isNaN(id)) return false;
-    if (Array.isArray(user.purchasedLessonIds) && user.purchasedLessonIds.map(Number).includes(id)) return true;
-    if (Array.isArray(user.purchasedCursusIds) && user.purchasedCursusIds.map(Number).includes(id)) return true;
-    if (Array.isArray(user.purchasedItems)) {
-      if (user.purchasedItems.some(it => Number(it.productId) === id && ((it.productType || '').toLowerCase().includes('lesson')))) return true;
-      if (user.purchasedItems.some(it => Number(it.productId) === id && ((it.productType || '').toLowerCase().includes('course') || (it.productType || '').toLowerCase().includes('cursus')))) return true;
-    }
+
     const checkList = (list) => {
-      if (!Array.isArray(list) || list.length === 0) return false;
-      const first = list[0];
-      if (typeof first === 'number') return list.map(Number).includes(id);
-      if (first && typeof first === 'object') {
-        return list.some(item => {
-          if (!item) return false;
-          if (item.id && Number(item.id) === id) return true;
-          if (item.lessonId && Number(item.lessonId) === id) return true;
-          const nested = item.Lessons || item.lessons || item.CourseLessons || item.courseLessons;
-          if (Array.isArray(nested)) return nested.some(n => Number(n?.id) === id);
-          return false;
-        });
-      }
-      return false;
+      if (!Array.isArray(list)) return false;
+      return list.some(item => item?.id === id || item?.lessonId === id || (Array.isArray(item?.lessons) && item.lessons.some(l => l.id === id)));
     };
-    const propsToCheck = [
-      user.ownedLessons, user.purchasedLessons, user.ownedCourses, user.purchasedCourses,
-      user.purchasedContent, user.purchased_items, user.purchases, user.courses
-    ];
-    for (const p of propsToCheck) {
-      if (checkList(p)) return true;
-    }
-    return false;
+
+    const propsToCheck = [user.purchasedLessonIds, user.purchasedCursusIds, user.purchasedItems];
+    return propsToCheck.some(checkList);
   }, [user]);
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      accessToken,
-      login,
-      logout,
-      refresh,
-      fetchUserAndRefresh,
-      isLoading,
-      isPurchasesLoading,
-      api,
-      isLessonOwned
-    }}>
+    <AuthContext.Provider value={{ user, accessToken, login, logout, refresh, fetchUserAndRefresh, isLoading, isPurchasesLoading, api, isLessonOwned }}>
       {children}
     </AuthContext.Provider>
   );
@@ -341,6 +265,5 @@ export const useAuth = () => {
   return ctx;
 };
 
-// Optional export for gradual migration: allow importing axios-like 'legacy' object
 export const axiosLegacy = api;
 export default AuthProvider;

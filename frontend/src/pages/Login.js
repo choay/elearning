@@ -40,17 +40,10 @@ function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder=" "
-              className="w-full p-4 pt-6 text-base border-2 border-indigo-300 rounded-xl focus:border-[#0074c7] outline-none peer transition duration-200 disabled:bg-gray-50 disabled:cursor-not-allowed"
-              required
-              disabled={loading}
-              id="email"
+              className="w-full p-4 pt-6 text-base border-2 border-indigo-300 rounded-xl focus:border-[#0074c7] outline-none peer"
+              required disabled={loading} id="email"
             />
-            <label
-              htmlFor="email"
-              className="absolute left-4 top-1 text-sm text-indigo-500 transition-all peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-focus:top-1 peer-focus:text-sm peer-focus:text-[#0074c7] pointer-events-none bg-white px-1"
-            >
-              Email
-            </label>
+            <label htmlFor="email" className="absolute left-4 top-1 text-sm text-indigo-500 transition-all peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-focus:top-1 peer-focus:text-sm peer-focus:text-[#0074c7] pointer-events-none bg-white px-1">Email</label>
           </div>
 
           <div className="relative">
@@ -59,17 +52,10 @@ function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder=" "
-              className="w-full p-4 pt-6 text-base border-2 border-indigo-300 rounded-xl focus:border-[#0074c7] outline-none peer transition duration-200 disabled:bg-gray-50 disabled:cursor-not-allowed"
-              required
-              disabled={loading}
-              id="password"
+              className="w-full p-4 pt-6 text-base border-2 border-indigo-300 rounded-xl focus:border-[#0074c7] outline-none peer"
+              required disabled={loading} id="password"
             />
-            <label
-              htmlFor="password"
-              className="absolute left-4 top-1 text-sm text-indigo-500 transition-all peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-focus:top-1 peer-focus:text-sm peer-focus:text-[#0074c7] pointer-events-none bg-white px-1"
-            >
-              Mot de passe
-            </label>
+            <label htmlFor="password" className="absolute left-4 top-1 text-sm text-indigo-500 transition-all peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-focus:top-1 peer-focus:text-sm peer-focus:text-[#0074c7] pointer-events-none bg-white px-1">Mot de passe</label>
           </div>
 
           {error && (
