@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
 import musiqueImg from '../assets/images/musique.webp';
@@ -47,12 +46,12 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const { user } = useAuth();
+  const { user, api } = useAuth();
 
   useEffect(() => {
     const fetchThemes = async () => {
       try {
-        const res = await axios.get('/api/themes', { withCredentials: true });
+        const res = await api.get('/api/themes');
         const formatted = res.data.map((t, index) => ({
           to: `/themes/${t.id}`,
           img: defaultImages[index % defaultImages.length],
@@ -69,7 +68,7 @@ export default function Home() {
       }
     };
     fetchThemes();
-  }, []);
+  }, [api]);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-[#f1f8fc]">
