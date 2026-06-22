@@ -10,25 +10,40 @@ const sendActivationEmail = async (to, activationToken) => {
   console.log(activationLink);
   console.log(`==========================================\n`);
 
-  // LA CORRECTION EST ICI : On passe sur le port sécurisé 465 (SSL)
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // Doit être à true pour le port 465
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
-    },
-    tls: {
-      rejectUnauthorized: false // Empêche Render de bloquer la sécurité de Google
-    }
-  });
+  let transporter;
+
+  // SI ON EST EN PRODUCTION SUR RENDER : On utilise ta clé SendGrid (Jamais bloquée)
+  if (process.env.SENDGRID_API_KEY && process.env.NODE_ENV === 'production') {
+    console.log("[sendEmail] Mode Production : Envoi via SendGrid...");
+    transporter = nodemailer.createTransport({
+      host: 'smtp.sendgrid.net',
+      port: 465,
+      secure: true,
+      auth: {
+        user: 'apikey', // C'est obligatoirement le mot "apikey" écrit tel quel
+        pass: process.env.SENDGRID_API_KEY // Ta clé magique stockée sur Render
+      }
+    });
+  } 
+  // SI ON EST EN LOCAL (SUR TON PC) : On garde ton Gmail d'origine qui fonctionne
+  else {
+    console.log("[sendEmail] Mode Local : Envoi via Gmail...");
+    transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+  }
 
   const mailOptions = {
-    from: process.env.EMAIL_USER,
+    // Note : Pour SendGrid en production, l'adresse "from" doit être vérifiée sur ton compte SendGrid
+    from: process.env.EMAIL_USER, 
     to,
     subject: 'Activation de votre compte',
-    text: `Bonjour,\n\nVeuillez activer votre compte en suivant ce lien :\n\n${activationLink}\n\nMerci,\nL'équipe`,
     html: `
       <div style="font-family:Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
         <h2>Activer votre compte</h2>
@@ -48,8 +63,8 @@ const sendActivationEmail = async (to, activationToken) => {
     console.log(`[sendEmail] ✅ Email envoyé avec succès à : ${to}`);
     return true;
   } catch (err) {
-    console.error('[sendEmail] ❌ Erreur technique d\'envoi Gmail :', err.message || err);
-    throw err; // Permet à ton contrôleur de voir le problème
+    console.error('[sendEmail] ❌ Erreur d\'envoi email :', err.message || err);
+    throw err;
   }
 };
 
