@@ -2,22 +2,26 @@ const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 const sendActivationEmail = async (to, activationToken) => {
-  const activationLink = `http://localhost:5000/api/auth/activate/${activationToken}`;
+  // Détecte automatiquement l'URL (Render en ligne, ou localhost sur ton PC)
+  const baseUrl = process.env.API_URL || 'http://localhost:5000';
+  const activationLink = `${baseUrl}/api/auth/activate/${activationToken}`;
 
-  console.log(`\n============== [DEV] LINK ==============`);
+  console.log(`\n============== [EMAIL LINK] ==============`);
   console.log(`Lien d'activation pour ${to} :`);
   console.log(activationLink);
-  console.log(`========================================\n`);
+  console.log(`==========================================\n`);
 
+  // Configuration SMTP sécurisée et explicite requise pour les serveurs cloud comme Render
   const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // Doit être à false pour le port 587
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS
     },
-    // ✅ CETTE LOGIQUE AJOUTÉE REPARE L'ERREUR DE CERTIFICAT :
     tls: {
-      rejectUnauthorized: false
+      rejectUnauthorized: false // Évite que le pare-feu de Render bloque le certificat SSL
     }
   });
 
@@ -42,11 +46,11 @@ const sendActivationEmail = async (to, activationToken) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`[sendEmail] ✅ Email envoyé avec succès via Gmail à : ${to}`);
+    console.log(`[sendEmail] ✅ Email envoyé avec succès à : ${to}`);
     return true;
   } catch (err) {
     console.error('[sendEmail] ❌ Erreur technique d\'envoi Gmail :', err.message || err);
-    return true;
+    throw err; // Obligatoire pour que le fichier authController intercepte le problème
   }
 };
 
