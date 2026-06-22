@@ -4,12 +4,8 @@ const { User, RefreshToken } = require('../models');
 const crypto = require('crypto');
 const { Op } = require('sequelize');
 
-let sendActivationEmail = null;
-try {
-  sendActivationEmail = require('../utils/sendEmail');
-} catch (e) {
-  console.warn('sendActivationEmail introuvable.');
-}
+// Importation directe et propre de la fonction d'envoi
+const sendActivationEmail = require('../utils/sendEmail');
 
 const ACCESS_TOKEN_SECRET = process.env.JWT_SECRET || process.env.ACCESS_TOKEN_SECRET;
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || process.env.JWT_REFRESH_SECRET;
@@ -55,7 +51,7 @@ const register = async (req, res) => {
     if (!newUser.isActive && typeof sendActivationEmail === 'function') {
       try { 
         await sendActivationEmail(newUser.email, activationToken); 
-        console.log(`[register] ✅ Appel de la fonction d'envoi Gmail pour ${newUser.email}`);
+        console.log(`[register] ✅ Appel de la fonction d'envoi d'email pour ${newUser.email}`);
       } catch (e) { 
         console.warn('[register] ❌ Erreur lors de l\'envoi :', e.message || e); 
       }
