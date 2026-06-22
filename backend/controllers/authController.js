@@ -42,7 +42,12 @@ const register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const activationToken = crypto.randomBytes(24).toString('hex');
-    const activationExpires = Date.now() + 24 * 60 * 60 * 1000;
+    
+    // En utilisant le format d'un objet Date natif converti en Timestamp, 
+    // on force Sequelize à envoyer une valeur standardisée à MySQL (Aiven)
+    const expiryDate = new Date();
+    expiryDate.setHours(expiryDate.getHours() + 24);
+    const activationExpires = expiryDate.getTime(); 
 
     const newUser = await User.create({
       email,
@@ -161,10 +166,13 @@ const activateAccount = async (req, res) => {
     const { token } = req.params;
     if (!token) return res.status(400).json({ message: 'Token requis.' });
 
+    // Extraction du timestamp actuel basé sur le temps universel (évite les décalages de fuseaux horaires)
+    const nowTimestamp = new Date().getTime();
+
     const user = await User.findOne({
       where: {
         activationToken: token,
-        activationExpires: { [Op.gt]: Date.now() },
+        activationExpires: { [Op.gt]: nowTimestamp }, // Comparaison propre entre deux entiers
       },
     });
 
