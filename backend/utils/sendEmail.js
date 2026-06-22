@@ -1,10 +1,13 @@
 const nodemailer = require('nodemailer');
-const sgMail = require('@sendgrid/mail');
+const Brevo = require('@getbrevo/brevo');
 require('dotenv').config();
 
-// Configuration de la clé API SendGrid pour le mode HTTP
-if (process.env.SENDGRID_API_KEY) {
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+// Configuration de l'API Brevo pour la production
+let brevoApiClient = null;
+if (process.env.BREVO_API_KEY) {
+  brevoApiClient = Brevo.ApiClient.instance;
+  let apiKey = brevoApiClient.authentications['api-key'];
+  apiKey.apiKey = process.env.BREVO_API_KEY;
 }
 
 const sendActivationEmail = async (to, activationToken) => {
@@ -19,36 +22,37 @@ const sendActivationEmail = async (to, activationToken) => {
   const isRender = baseUrl.includes('render.com') || process.env.NODE_ENV === 'production';
 
   if (isRender) {
-    console.log("[sendEmail] 🌐 Mode Production (Render) : Envoi via l'API Web de SendGrid (Port 443)...");
+    console.log("[sendEmail] 🌐 Mode Production (Render) : Envoi via l'API Web de Brevo...");
     
-    const msg = {
-      to: to,
-      from: process.env.EMAIL_USER, // Ton adresse validée maghmoulicho@gmail.com
-      subject: 'Activation de votre compte',
-      html: `
-        <div style="font-family:Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-          <h2>Activer votre compte</h2>
-          <p>Bonjour,</p>
-          <p>Veuillez activer votre compte en cliquant sur le bouton ci-dessous :</p>
-          <p style="margin: 20px 0;">
-            <a href="${activationLink}" target="_blank" rel="noopener noreferrer" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 3px; display: inline-block; font-weight: bold;">Activer mon compte</a>
-          </p>
-          <p>Ou copiez-collez ce lien : <br><a href="${activationLink}">${activationLink}</a></p>
-          <p style="color: #666; font-size: 12px; margin-top: 30px;">Merci,<br>L'équipe E-Learning</p>
-        </div>
-      `,
-    };
+    if (!process.env.BREVO_API_KEY) {
+      throw new Error("La variable BREVO_API_KEY est manquante sur Render.");
+    }
+
+    const apiInstance = new Brevo.TransactionalEmailsApi();
+    const sendSmtpEmail = new Brevo.SendSmtpEmail();
+
+    sendSmtpEmail.subject = "Activation de votre compte";
+    sendSmtpEmail.htmlContent = `
+      <div style="font-family:Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+        <h2>Activer votre compte</h2>
+        <p>Bonjour,</p>
+        <p>Veuillez activer votre compte en cliquant sur le bouton ci-dessous :</p>
+        <p style="margin: 20px 0;">
+          <a href="${activationLink}" target="_blank" rel="noopener noreferrer" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 3px; display: inline-block; font-weight: bold;">Activer mon compte</a>
+        </p>
+        <p>Ou copiez-collez ce lien : <br><a href="${activationLink}">${activationLink}</a></p>
+        <p style="color: #666; font-size: 12px; margin-top: 30px;">Merci,<br>L'équipe E-Learning</p>
+      </div>
+    `;
+    sendSmtpEmail.sender = { "name": "E-Learning Team", "email": process.env.EMAIL_USER };
+    sendSmtpEmail.to = [{ "email": to }];
 
     try {
-      // Envoi direct par requête HTTP POST, indétectable par le blocage SMTP de Render
-      await sgMail.send(msg);
-      console.log(`[sendEmail] ✅ Succès API SendGrid pour : ${to}`);
+      await apiInstance.sendTransacEmail(sendSmtpEmail);
+      console.log(`[sendEmail] ✅ Succès API Brevo pour : ${to}`);
       return true;
     } catch (error) {
-      console.error(`[sendEmail] ❌ Erreur API SendGrid :`, error.message || error);
-      if (error.response && error.response.body) {
-        console.error(`[sendEmail] Détails :`, JSON.stringify(error.response.body));
-      }
+      console.error(`[sendEmail] ❌ Erreur API Brevo :`, error.message || error);
       throw error;
     }
 
