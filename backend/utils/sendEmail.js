@@ -2,12 +2,12 @@ const nodemailer = require('nodemailer');
 const Brevo = require('@getbrevo/brevo');
 require('dotenv').config();
 
-// Configuration de l'API Brevo pour la production
-let brevoApiClient = null;
+// Nouvelle méthode d'initialisation pour le SDK Brevo v4+
+let apiInstance = null;
 if (process.env.BREVO_API_KEY) {
-  brevoApiClient = Brevo.ApiClient.instance;
-  let apiKey = brevoApiClient.authentications['api-key'];
-  apiKey.apiKey = process.env.BREVO_API_KEY;
+  apiInstance = new Brevo.TransactionalEmailsApi();
+  // Configuration globale de la clé API via le client par défaut
+  Brevo.ApiClient.instance.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
 }
 
 const sendActivationEmail = async (to, activationToken) => {
@@ -28,26 +28,27 @@ const sendActivationEmail = async (to, activationToken) => {
       throw new Error("La variable BREVO_API_KEY est manquante sur Render.");
     }
 
-    const apiInstance = new Brevo.TransactionalEmailsApi();
-    const sendSmtpEmail = new Brevo.SendSmtpEmail();
-
-    sendSmtpEmail.subject = "Activation de votre compte";
-    sendSmtpEmail.htmlContent = `
-      <div style="font-family:Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-        <h2>Activer votre compte</h2>
-        <p>Bonjour,</p>
-        <p>Veuillez activer votre compte en cliquant sur le bouton ci-dessous :</p>
-        <p style="margin: 20px 0;">
-          <a href="${activationLink}" target="_blank" rel="noopener noreferrer" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 3px; display: inline-block; font-weight: bold;">Activer mon compte</a>
-        </p>
-        <p>Ou copiez-collez ce lien : <br><a href="${activationLink}">${activationLink}</a></p>
-        <p style="color: #666; font-size: 12px; margin-top: 30px;">Merci,<br>L'équipe E-Learning</p>
-      </div>
-    `;
-    sendSmtpEmail.sender = { "name": "E-Learning Team", "email": process.env.EMAIL_USER };
-    sendSmtpEmail.to = [{ "email": to }];
+    // Création de l'objet email avec la nouvelle structure
+    const sendSmtpEmail = {
+      subject: "Activation de votre compte",
+      htmlContent: `
+        <div style="font-family:Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+          <h2>Activer votre compte</h2>
+          <p>Bonjour,</p>
+          <p>Veuillez activer votre compte en cliquant sur le bouton ci-dessous :</p>
+          <p style="margin: 20px 0;">
+            <a href="${activationLink}" target="_blank" rel="noopener noreferrer" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 3px; display: inline-block; font-weight: bold;">Activer mon compte</a>
+          </p>
+          <p>Ou copiez-collez ce lien : <br><a href="${activationLink}">${activationLink}</a></p>
+          <p style="color: #666; font-size: 12px; margin-top: 30px;">Merci,<br>L'équipe E-Learning</p>
+        </div>
+      `,
+      sender: { name: "E-Learning Team", email: process.env.EMAIL_USER || "maghmoulicho@gmail.com" },
+      to: [{ email: to }]
+    };
 
     try {
+      // Utilisation de l'instance configurée
       await apiInstance.sendTransacEmail(sendSmtpEmail);
       console.log(`[sendEmail] ✅ Succès API Brevo pour : ${to}`);
       return true;
