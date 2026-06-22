@@ -12,22 +12,22 @@ const sendActivationEmail = async (to, activationToken) => {
 
   let transporter;
 
-  // SI ON EST EN PRODUCTION SUR RENDER : On utilise ta clé SendGrid (Jamais bloquée)
-  if (process.env.SENDGRID_API_KEY && process.env.NODE_ENV === 'production') {
-    console.log("[sendEmail] Mode Production : Envoi via SendGrid...");
+  // Détection automatique de l'environnement (Render vs Local)
+  const isRender = baseUrl.includes('render.com') || process.env.NODE_ENV === 'production';
+
+  if (isRender) {
+    console.log("[sendEmail] 🌐 Mode Production (Render) : Envoi via SendGrid...");
     transporter = nodemailer.createTransport({
       host: 'smtp.sendgrid.net',
       port: 465,
       secure: true,
       auth: {
-        user: 'apikey', // C'est obligatoirement le mot "apikey" écrit tel quel
-        pass: process.env.SENDGRID_API_KEY // Ta clé magique stockée sur Render
+        user: 'apikey', // Obligatoirement "apikey" textuel
+        pass: process.env.SENDGRID_API_KEY
       }
     });
-  } 
-  // SI ON EST EN LOCAL (SUR TON PC) : On garde ton Gmail d'origine qui fonctionne
-  else {
-    console.log("[sendEmail] Mode Local : Envoi via Gmail...");
+  } else {
+    console.log("[sendEmail] 💻 Mode Local (PC) : Envoi via Gmail...");
     transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
       port: 587,
@@ -35,13 +35,15 @@ const sendActivationEmail = async (to, activationToken) => {
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
+      },
+      tls: {
+        rejectUnauthorized: false
       }
     });
   }
 
   const mailOptions = {
-    // Note : Pour SendGrid en production, l'adresse "from" doit être vérifiée sur ton compte SendGrid
-    from: process.env.EMAIL_USER, 
+    from: process.env.EMAIL_USER, // maghmoulicho@gmail.com (Validé sur SendGrid)
     to,
     subject: 'Activation de votre compte',
     html: `
