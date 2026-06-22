@@ -4,27 +4,33 @@ const { User, RefreshToken } = require('../models');
 const crypto = require('crypto');
 const { Op } = require('sequelize');
 
-// Importation directe et propre de la fonction d'envoi
+// Importation directe et propre de la fonction d'envoi d'email
 const sendActivationEmail = require('../utils/sendEmail');
 
 const ACCESS_TOKEN_SECRET = process.env.JWT_SECRET || process.env.ACCESS_TOKEN_SECRET;
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || process.env.JWT_REFRESH_SECRET;
 
+// --- CONFIGURATION SÉCURISÉE DES COOKIES POUR VERCEL & RENDER ---
+const isProd = process.env.NODE_ENV === 'production';
+
 const cookieOptions = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+  secure: true, // Doit être à true pour SameSite: 'None'
+  sameSite: 'None', // Indispensable pour l'échange Vercel <-> Render
   path: '/',
-  maxAge: 7 * 24 * 60 * 60 * 1000,
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 jours
+  partitioned: isProd, // 🔥 Force Chrome à accepter le cookie tiers en production
 };
 
 const accessTokenCookieOptions = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+  secure: true,
+  sameSite: 'None',
   path: '/',
-  maxAge: 15 * 60 * 1000,
+  maxAge: 15 * 60 * 1000, // 15 minutes
+  partitioned: isProd, // 🔥 Empêche le blocage au rafraîchissement
 };
+// ----------------------------------------------------------------
 
 const register = async (req, res) => {
   try {
@@ -102,8 +108,8 @@ const logout = async (req, res) => {
   try {
     const token = req.cookies?.refreshToken;
     if (token && RefreshToken) { await RefreshToken.update({ revoked: true }, { where: { token } }); }
-    res.clearCookie('refreshToken', { path: '/' });
-    res.clearCookie('accessToken', { path: '/' });
+    res.clearCookie('refreshToken', cookieOptions);
+    res.clearCookie('accessToken', accessTokenCookieOptions);
     return res.json({ message: 'Déconnecté avec succès' });
   } catch (err) {
     console.error('Logout error:', err);
