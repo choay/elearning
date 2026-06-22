@@ -2,7 +2,6 @@ const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 const sendActivationEmail = async (to, activationToken) => {
-  // Détecte automatiquement l'URL (Render en ligne, ou localhost sur ton PC)
   const baseUrl = process.env.API_URL || 'http://localhost:5000';
   const activationLink = `${baseUrl}/api/auth/activate/${activationToken}`;
 
@@ -11,17 +10,17 @@ const sendActivationEmail = async (to, activationToken) => {
   console.log(activationLink);
   console.log(`==========================================\n`);
 
-  // Configuration SMTP sécurisée et explicite requise pour les serveurs cloud comme Render
+  // LA CORRECTION EST ICI : On passe sur le port sécurisé 465 (SSL)
   const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // Doit être à false pour le port 587
+    port: 465,
+    secure: true, // Doit être à true pour le port 465
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS
     },
     tls: {
-      rejectUnauthorized: false // Évite que le pare-feu de Render bloque le certificat SSL
+      rejectUnauthorized: false // Empêche Render de bloquer la sécurité de Google
     }
   });
 
@@ -50,7 +49,7 @@ const sendActivationEmail = async (to, activationToken) => {
     return true;
   } catch (err) {
     console.error('[sendEmail] ❌ Erreur technique d\'envoi Gmail :', err.message || err);
-    throw err; // Obligatoire pour que le fichier authController intercepte le problème
+    throw err; // Permet à ton contrôleur de voir le problème
   }
 };
 
