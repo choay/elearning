@@ -2,12 +2,16 @@ const nodemailer = require('nodemailer');
 const Brevo = require('@getbrevo/brevo');
 require('dotenv').config();
 
-// Nouvelle méthode d'initialisation pour le SDK Brevo v4+
+// Initialisation correcte du client Brevo v4+
 let apiInstance = null;
 if (process.env.BREVO_API_KEY) {
+  // Configuration de la clé API
+  const defaultClient = Brevo.ApiClient.instance;
+  const apiKey = defaultClient.authentications['api-key'];
+  apiKey.apiKey = process.env.BREVO_API_KEY;
+
+  // Création de l'instance pour les emails transactionnels via la bonne propriété exportée
   apiInstance = new Brevo.TransactionalEmailsApi();
-  // Configuration globale de la clé API via le client par défaut
-  Brevo.ApiClient.instance.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
 }
 
 const sendActivationEmail = async (to, activationToken) => {
@@ -24,11 +28,11 @@ const sendActivationEmail = async (to, activationToken) => {
   if (isRender) {
     console.log("[sendEmail] 🌐 Mode Production (Render) : Envoi via l'API Web de Brevo...");
     
-    if (!process.env.BREVO_API_KEY) {
-      throw new Error("La variable BREVO_API_KEY est manquante sur Render.");
+    if (!process.env.BREVO_API_KEY || !apiInstance) {
+      throw new Error("La variable BREVO_API_KEY est manquante ou l'API Brevo n'est pas initialisée.");
     }
 
-    // Création de l'objet email avec la nouvelle structure
+    // Structure de l'email attendue par le SDK Brevo
     const sendSmtpEmail = {
       subject: "Activation de votre compte",
       htmlContent: `
@@ -48,7 +52,6 @@ const sendActivationEmail = async (to, activationToken) => {
     };
 
     try {
-      // Utilisation de l'instance configurée
       await apiInstance.sendTransacEmail(sendSmtpEmail);
       console.log(`[sendEmail] ✅ Succès API Brevo pour : ${to}`);
       return true;
