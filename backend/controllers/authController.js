@@ -42,39 +42,37 @@ const register = async (req, res) => {
     const activationToken = crypto.randomBytes(24).toString('hex');
     const activationExpires = Date.now() + 24 * 60 * 60 * 1000;
 
-    // Détecte si on force l'activation automatique via l'environnement
-    let autoActivate = process.env.AUTO_ACTIVATE === 'true';
+    // PROTECTION FINALE : Si on est sur Render (production), on active le compte DIRECTEMENT.
+    // En local (localhost), on le laisse à false pour envoyer le mail normalement.
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.API_URL?.includes('render.com');
+    const shouldAutoActivate = isProduction ? true : (process.env.AUTO_ACTIVATE === 'true');
 
     const newUser = await User.create({
       email,
       password: hashedPassword,
       name,
       role: 'user',
-      isActive: autoActivate,
-      activationToken: autoActivate ? null : activationToken,
-      activationExpires: autoActivate ? null : activationExpires,
+      isActive: shouldAutoActivate,
+      activationToken: shouldAutoActivate ? null : activationToken,
+      activationExpires: shouldAutoActivate ? null : activationExpires,
     });
 
-    // Si le compte n'est pas déjà activé par défaut, on tente l'envoi de l'email
+    // On n'appelle Nodemailer QUE si on est en local (PC) pour éviter le blocage réseau de Render
     if (!newUser.isActive && typeof sendActivationEmail === 'function') {
       try { 
         await sendActivationEmail(newUser.email, activationToken); 
-        console.log(`[register] ✅ Appel de la fonction d'envoi Gmail pour ${newUser.email}`);
+        console.log(`[register] ✅ (Local) Email d'activation envoyé pour ${newUser.email}`);
       } catch (e) { 
-        console.warn('[register] ⚠️ Envoi bloqué par l\'hébergeur. Activation automatique de secours appliquée.'); 
-        
-        // CORRECTION DIRECTE : Si Render bloque l'envoi, on active le compte immédiatement pour ne pas bloquer le site
-        newUser.isActive = true;
-        newUser.activationToken = null;
-        newUser.activationExpires = null;
-        await newUser.save();
+        console.warn('[register] ⚠️ Échec d\'envoi d\'email en local :', e.message || e); 
       }
+    } else if (shouldAutoActivate) {
+      console.log(`[register] ⚡ (Production Render) Compte activé instantanément pour ${newUser.email}`);
     }
 
-    res.status(201).json({ message: 'Utilisateur créé', user: { id: newUser.id, email: newUser.email } });
+    return res.status(201).json({ message: 'Utilisateur créé avec succès', user: { id: newUser.id, email: newUser.email } });
   } catch (err) {
     console.error('Register error:', err);
-    res.status(500).json({ message: 'Erreur serveur lors de l’inscription' });
+    return res.status(500).json({ message: 'Erreur serveur lors de l’inscription' });
   }
 };
 
