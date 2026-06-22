@@ -8,7 +8,7 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const api = axios.create({
   baseURL: API_URL,
-  withCredentials: true, // Crucial pour envoyer/recevoir les cookies Cross-Origin (Vercel <-> Render)
+  withCredentials: true, // important pour envoyer les cookies
 });
 
 // --- Interceptor pour refresh token ---
@@ -21,7 +21,6 @@ api.interceptors.response.use(
     const originalRequest = error.config;
     if (!originalRequest) return Promise.reject(error);
 
-    // Si erreur 401 et que la requête n'a pas déjà été tentée
     if (error.response && error.response.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
@@ -37,11 +36,11 @@ api.interceptors.response.use(
       isRefreshing = true;
       refreshPromise = (async () => {
         try {
-          // Utilisation de l'instance "api" au lieu de l'Axios global
-          const res = await api.post('/api/auth/refresh', {});
+          const res = await axios.post(`${API_URL}/api/auth/refresh`, {}, { withCredentials: true });
           const token = res.data?.accessToken;
           if (token) {
             api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+            try { document.cookie = `accessToken=${token}; path=/;`; } catch {}
             return token;
           }
           throw new Error('No token from refresh');
@@ -88,6 +87,7 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setAccessToken(null);
       applyAuthHeader(null);
+      try { document.cookie = 'accessToken=; path=/; max-age=0'; } catch {}
       return;
     }
     const payload = decodeToken(token);
@@ -106,6 +106,7 @@ export const AuthProvider = ({ children }) => {
     const res = await api.post('/api/auth/login', { email, password });
     const token = res.data?.accessToken;
     if (token) {
+      try { document.cookie = `accessToken=${token}; path=/;`; } catch {}
       setUserFromToken(token);
     }
     return res.data;
@@ -116,23 +117,25 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setAccessToken(null);
     applyAuthHeader(null);
+    try { document.cookie = 'accessToken=; path=/; max-age=0'; } catch {}
     if (redirect) { try { window.location.href = '/login'; } catch {} }
   };
 
   const refresh = useCallback(async () => {
     try {
-      // Utilisation de l'instance "api" locale
-      const res = await api.post('/api/auth/refresh', {});
+      const res = await axios.post(`${API_URL}/api/auth/refresh`, {}, { withCredentials: true });
       const token = res.data?.accessToken;
       if (token) {
         applyAuthHeader(token);
         setAccessToken(token);
+        try { document.cookie = `accessToken=${token}; path=/;`; } catch {}
         return token;
       }
       return null;
     } catch (err) {
       applyAuthHeader(null);
       setAccessToken(null);
+      try { document.cookie = 'accessToken=; path=/; max-age=0'; } catch {}
       return null;
     }
   }, []);
