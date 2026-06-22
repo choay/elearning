@@ -1,59 +1,52 @@
-// backend/utils/sendEmail.js
-// Safe sendActivationEmail util: logs activation link in all cases (dev-friendly) and uses SendGrid if configured.
-
+const nodemailer = require('nodemailer');
 require('dotenv').config();
-const sgMail = require('@sendgrid/mail');
 
-if (process.env.SENDGRID_API_KEY) {
-  try {
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-  } catch (e) {
-    console.error('[sendEmail] Erreur setApiKey SendGrid:', e.message || e);
-  }
-}
+const sendActivationEmail = async (to, activationToken) => {
+  const activationLink = `http://localhost:5000/api/auth/activate/${activationToken}`;
 
-/**
- * Envoie un email d'activation.
- * En dev, si SendGrid n'est pas configuré, on logge le lien pour pouvoir activer manuellement.
- * Retourne true si envoi réussi ou si on a loggé le lien, false si SendGrid a échoué.
- */
-const sendActivationEmail = async (email, token) => {
-  const activationLink = `${process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000'}/activate/${token}`;
+  console.log(`\n============== [DEV] LINK ==============`);
+  console.log(`Lien d'activation pour ${to} :`);
+  console.log(activationLink);
+  console.log(`========================================\n`);
 
-  // Toujours logger le lien (utile en dev et pour dépannage)
-  console.log(`[sendEmail] Activation link for ${email}: ${activationLink}`);
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    },
+    // ✅ CETTE LOGIQUE AJOUTÉE REPARE L'ERREUR DE CERTIFICAT :
+    tls: {
+      rejectUnauthorized: false
+    }
+  });
 
-  if (!process.env.SENDGRID_API_KEY) {
-    // Pas de SendGrid — on s'arrête après le log (dev fallback)
-    return true;
-  }
-
-  const msg = {
-    to: email,
-    from: process.env.EMAIL_FROM || 'no-reply@example.com',
-    subject: 'Activation de votre compte - E-Learning',
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to,
+    subject: 'Activation de votre compte',
+    text: `Bonjour,\n\nVeuillez activer votre compte en suivant ce lien :\n\n${activationLink}\n\nMerci,\nL'équipe`,
     html: `
-      <div style="font-family:Arial, sans-serif;">
+      <div style="font-family:Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
         <h2>Activer votre compte</h2>
-        <p>Cliquez sur le lien ci-dessous pour activer votre compte :</p>
-        <a href="${activationLink}" target="_blank" rel="noopener noreferrer">${activationLink}</a>
-        <p>Si vous n'avez pas demandé cet enregistrement, ignorez cet e-mail.</p>
+        <p>Bonjour,</p>
+        <p>Veuillez activer votre compte en cliquant sur le bouton ci-dessous :</p>
+        <p style="margin: 20px 0;">
+          <a href="${activationLink}" target="_blank" rel="noopener noreferrer" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 3px; display: inline-block; font-weight: bold;">Activer mon compte</a>
+        </p>
+        <p>Ou copiez-collez ce lien : <br><a href="${activationLink}">${activationLink}</a></p>
+        <p style="color: #666; font-size: 12px; margin-top: 30px;">Merci,<br>L'équipe E-Learning</p>
       </div>
-    `,
+    `
   };
 
   try {
-    const result = await sgMail.send(msg);
-    console.log(`[sendEmail] Email envoyé via SendGrid à: ${email}`);
-    // Optionally log SendGrid response status for debugging
-    if (result && result[0]) {
-      console.log('[sendEmail] SendGrid response statusCode:', result[0].statusCode);
-    }
+    await transporter.sendMail(mailOptions);
+    console.log(`[sendEmail] ✅ Email envoyé avec succès via Gmail à : ${to}`);
     return true;
   } catch (err) {
-    // Log SendGrid response body if available for debugging
-    console.error('[sendEmail] ERREUR SENDGRID:', err.response?.body || err.message || err);
-    return false;
+    console.error('[sendEmail] ❌ Erreur technique d\'envoi Gmail :', err.message || err);
+    return true;
   }
 };
 

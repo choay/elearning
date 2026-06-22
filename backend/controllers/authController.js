@@ -1,31 +1,19 @@
-// backend/controllers/authController.js
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { User, RefreshToken } = require('../models');
 const crypto = require('crypto');
 const { Op } = require('sequelize');
 
-// Try to load sendActivationEmail from utils (preferred) with safe fallback
 let sendActivationEmail = null;
 try {
   sendActivationEmail = require('../utils/sendEmail');
 } catch (e) {
-  try {
-    sendActivationEmail = require('../sendEmail');
-  } catch (e2) {
-    console.warn('sendActivationEmail not found in ../utils/sendEmail or ../sendEmail. Activation emails disabled.');
-  }
+  console.warn('sendActivationEmail introuvable.');
 }
 
-// Token secrets (use env names)
 const ACCESS_TOKEN_SECRET = process.env.JWT_SECRET || process.env.ACCESS_TOKEN_SECRET;
-const REFRESH_TOKEN_SECRET =
-  process.env.REFRESH_TOKEN_SECRET ||
-  process.env.JWT_REFRESH_SECRET ||
-  process.env.JWT_REFRESH ||
-  process.env.JWT_REFRESH_TOKEN;
+const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || process.env.JWT_REFRESH_SECRET;
 
-// Cookie options (Lax in dev, None+Secure in prod)
 const cookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
@@ -34,16 +22,14 @@ const cookieOptions = {
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
-// Access token cookie options (short lived)
 const accessTokenCookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
   sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
   path: '/',
-  maxAge: 15 * 60 * 1000, // 15 minutes
+  maxAge: 15 * 60 * 1000,
 };
 
-// --- REGISTER ---
 const register = async (req, res) => {
   try {
     const { email, password, name } = req.body;
@@ -54,23 +40,24 @@ const register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const activationToken = crypto.randomBytes(24).toString('hex');
-    const activationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24h
+    const activationExpires = Date.now() + 24 * 60 * 60 * 1000;
 
     const newUser = await User.create({
       email,
       password: hashedPassword,
       name,
       role: 'user',
-      isActive: process.env.AUTO_ACTIVATE === 'true' ? true : false,
+      isActive: process.env.AUTO_ACTIVATE === 'true',
       activationToken,
       activationExpires,
     });
 
-    if (!newUser.isActive) {
-      const activationLink = `${process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000'}/activate/${activationToken}`;
-      console.log('[register] Activation link (logged):', activationLink);
-      if (typeof sendActivationEmail === 'function') {
-        try { await sendActivationEmail(newUser.email, activationToken); } catch (e) { console.warn('[register] sendActivationEmail threw:', e); }
+    if (!newUser.isActive && typeof sendActivationEmail === 'function') {
+      try { 
+        await sendActivationEmail(newUser.email, activationToken); 
+        console.log(`[register] ✅ Appel de la fonction d'envoi Gmail pour ${newUser.email}`);
+      } catch (e) { 
+        console.warn('[register] ❌ Erreur lors de l\'envoi :', e.message || e); 
       }
     }
 
@@ -81,11 +68,9 @@ const register = async (req, res) => {
   }
 };
 
-// --- LOGIN ---
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log('[login] attempt for:', email);
     const user = await User.findOne({ where: { email } });
     if (!user) return res.status(401).json({ message: 'Email ou mot de passe invalide' });
 
@@ -95,20 +80,18 @@ const login = async (req, res) => {
     if (user.isActive === false) return res.status(403).json({ message: 'Compte non activé. Vérifiez votre email.' });
 
     if (!ACCESS_TOKEN_SECRET || !REFRESH_TOKEN_SECRET) {
-      console.error('JWT secrets missing.');
       return res.status(500).json({ message: 'Configuration serveur manquante (JWT secrets).' });
     }
 
     const accessToken = jwt.sign({ id: user.id, email: user.email, role: user.role }, ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
     const refreshToken = jwt.sign({ id: user.id }, REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
 
-    // persist refreshToken if model exists
     try {
-      const expiryDate = new Date(); expiryDate.setDate(expiryDate.getDate() + 7);
+      const expiryDate = new Date(); 
+      expiryDate.setDate(expiryDate.getDate() + 7);
       if (RefreshToken) await RefreshToken.create({ token: refreshToken, userId: user.id, expires: expiryDate });
     } catch (e) { console.warn('Impossible de sauvegarder le refresh token en base :', e.message || e); }
 
-    // Set HttpOnly cookies for refresh and access tokens
     res.cookie('refreshToken', refreshToken, cookieOptions);
     res.cookie('accessToken', accessToken, accessTokenCookieOptions);
 
@@ -119,7 +102,6 @@ const login = async (req, res) => {
   }
 };
 
-// --- LOGOUT ---
 const logout = async (req, res) => {
   try {
     const token = req.cookies?.refreshToken;
@@ -133,17 +115,15 @@ const logout = async (req, res) => {
   }
 };
 
-// --- REFRESH ---
 const refresh = async (req, res) => {
   try {
     const token = req.cookies?.refreshToken;
-    console.log('[refresh] refresh cookie present:', !!token);
     if (!token) return res.status(401).json({ message: 'Pas de refresh token' });
 
     const stored = RefreshToken ? await RefreshToken.findOne({ where: { token, revoked: false } }) : null;
     if (RefreshToken && !stored) return res.status(401).json({ message: 'Refresh token invalide' });
 
-    if (!REFRESH_TOKEN_SECRET) { console.error('REFRESH_TOKEN_SECRET not configured.'); return res.status(500).json({ message: 'Configuration serveur manquante.' }); }
+    if (!REFRESH_TOKEN_SECRET) return res.status(500).json({ message: 'Configuration serveur manquante.' });
 
     let decoded;
     try { decoded = jwt.verify(token, REFRESH_TOKEN_SECRET); } catch (verifyErr) { return res.status(401).json({ message: 'Refresh token invalide ou expiré' }); }
@@ -154,11 +134,8 @@ const refresh = async (req, res) => {
     if (!ACCESS_TOKEN_SECRET) return res.status(500).json({ message: 'Configuration serveur manquante.' });
 
     const accessToken = jwt.sign({ id: user.id, email: user.email, role: user.role }, ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
-
-    // Set a short-lived HttpOnly cookie for access token so server receives it automatically
     res.cookie('accessToken', accessToken, accessTokenCookieOptions);
 
-    console.log('[refresh] new access token issued for user id:', user.id);
     return res.json({ accessToken });
   } catch (err) {
     console.error('Refresh error:', err);
@@ -166,10 +143,8 @@ const refresh = async (req, res) => {
   }
 };
 
-// --- GET CURRENT USER ---
 const getCurrentUser = async (req, res) => {
   try {
-    console.log('[getCurrentUser] headers Authorization present:', !!req.headers.authorization, 'cookie accessToken present:', !!req.cookies?.accessToken);
     if (!req.user || !req.user.id) return res.status(401).json({ message: 'Non authentifié' });
     const u = await User.findByPk(req.user.id, { attributes: ['id', 'email', 'name', 'role'] });
     res.json({ user: u });
@@ -179,7 +154,6 @@ const getCurrentUser = async (req, res) => {
   }
 };
 
-// --- ACTIVATE ACCOUNT ---
 const activateAccount = async (req, res) => {
   try {
     const { token } = req.params;
