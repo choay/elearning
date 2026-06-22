@@ -1,3 +1,4 @@
+// app.js
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -6,6 +7,7 @@ const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
 
+// Importations des routeurs
 const purchaseRouter = require('./routes/purchaseRouter');
 const authRouter = require('./routes/authRouter');
 const certificateRouter = require('./routes/certificateRouter');
@@ -17,11 +19,12 @@ const progressRouter = require('./routes/progressRouter');
 
 const app = express();
 
-// Si derrière un proxy (Render, Vercel)
+// Configuration du Proxy pour Render / Vercel (indispensable pour les cookies HTTPS)
 if ((process.env.NODE_ENV || '').trim() === 'production') {
   app.set('trust proxy', 1);
 }
 
+// Middlewares de base
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -31,23 +34,39 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// Gestion d'origines autorisées
+// --- CONFIGURATION DYNAMIQUE DU CORS (Local & Production) ---
 const corsOriginEnv = (process.env.CORS_ORIGIN || '').trim();
 const clientUrlEnv = (process.env.CLIENT_URL || process.env.FRONTEND_URL || '').trim();
 
 let allowedOrigins = [];
+
 if (corsOriginEnv) {
   allowedOrigins = corsOriginEnv.split(',').map(s => s.trim()).filter(Boolean);
 } else if (clientUrlEnv) {
   allowedOrigins = [clientUrlEnv];
-} else {
-  allowedOrigins = ['http://localhost:3000'];
+}
+
+// Ajout automatique des ports locaux en mode développement
+if (process.env.NODE_ENV !== 'production') {
+  allowedOrigins.push('http://localhost:3000');
+  allowedOrigins.push('http://localhost:5173');
+  allowedOrigins.push('http://127.0.0.1:3000');
+  allowedOrigins.push('http://127.0.0.1:5173');
 }
 
 const corsOptions = {
   origin: function (origin, callback) {
+    // Autoriser les requêtes sans origine (comme Postman ou requêtes internes)
     if (!origin) return callback(null, true);
+    
+    // Si l'origine est explicitement dans notre liste
     if (allowedOrigins.includes(origin)) return callback(null, true);
+    
+    // Sécurité de secours : accepter localhost ou 127.0.0.1 de manière dynamique en local
+    if (process.env.NODE_ENV !== 'production' && (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:'))) {
+      return callback(null, true);
+    }
+
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -58,6 +77,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
+// -------------------------------------------------------------
 
 // Configuration express-session pour cookies (sécurisée en production)
 app.use(session({
@@ -73,6 +93,7 @@ app.use(session({
   }
 }));
 
+// Logger d'en-têtes pour le debug de production
 app.use((req, res, next) => {
   console.debug('[incoming headers]', {
     origin: req.headers.origin,
@@ -83,6 +104,7 @@ app.use((req, res, next) => {
   next();
 });
 
+// Déclaration des routes de l'API
 app.use('/api/auth', authRouter);
 app.use('/api/users', userRouter);
 app.use('/api/themes', themeRouter);
@@ -92,14 +114,17 @@ app.use('/api/progress', progressRouter);
 app.use('/api/certificates', certificateRouter);
 app.use('/api/purchases', purchaseRouter);
 
+// Route racine principale
 app.get('/', (req, res) => {
   res.json({ message: 'API en ligne', environment: process.env.NODE_ENV });
 });
 
+// Gestion des routes inconnues
 app.use((req, res) => {
   res.status(404).json({ error: 'Route introuvable' });
 });
 
+// Middleware centralisé de gestion des erreurs
 app.use((err, req, res, next) => {
   console.error('Erreur serveur :', err);
   if (err?.message?.includes('Not allowed by CORS')) {
