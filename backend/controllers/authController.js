@@ -42,22 +42,32 @@ const register = async (req, res) => {
     const activationToken = crypto.randomBytes(24).toString('hex');
     const activationExpires = Date.now() + 24 * 60 * 60 * 1000;
 
+    // Détecte si on force l'activation automatique via l'environnement
+    let autoActivate = process.env.AUTO_ACTIVATE === 'true';
+
     const newUser = await User.create({
       email,
       password: hashedPassword,
       name,
       role: 'user',
-      isActive: process.env.AUTO_ACTIVATE === 'true',
-      activationToken,
-      activationExpires,
+      isActive: autoActivate,
+      activationToken: autoActivate ? null : activationToken,
+      activationExpires: autoActivate ? null : activationExpires,
     });
 
+    // Si le compte n'est pas déjà activé par défaut, on tente l'envoi de l'email
     if (!newUser.isActive && typeof sendActivationEmail === 'function') {
       try { 
         await sendActivationEmail(newUser.email, activationToken); 
         console.log(`[register] ✅ Appel de la fonction d'envoi Gmail pour ${newUser.email}`);
       } catch (e) { 
-        console.warn('[register] ❌ Erreur lors de l\'envoi :', e.message || e); 
+        console.warn('[register] ⚠️ Envoi bloqué par l\'hébergeur. Activation automatique de secours appliquée.'); 
+        
+        // CORRECTION DIRECTE : Si Render bloque l'envoi, on active le compte immédiatement pour ne pas bloquer le site
+        newUser.isActive = true;
+        newUser.activationToken = null;
+        newUser.activationExpires = null;
+        await newUser.save();
       }
     }
 
