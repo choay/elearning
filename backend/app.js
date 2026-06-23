@@ -19,10 +19,8 @@ const progressRouter = require('./routes/progressRouter');
 
 const app = express();
 
-// Configuration du Proxy pour Render / Vercel (indispensable pour les cookies HTTPS)
-if ((process.env.NODE_ENV || '').trim() === 'production') {
-  app.set('trust proxy', 1);
-}
+// Configuration du Proxy pour Render / Vercel (Indispensable pour l'échange de cookies tiers HTTPS)
+app.set('trust proxy', 1);
 
 // Middlewares de base
 app.use(express.json({ limit: '10mb' }));
@@ -34,7 +32,7 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// --- CONFIGURATION DYNAMIQUE DU CORS (Local & Production) ---
+// --- CONFIGURATION DYNAMIQUE DU CORS ---
 const corsOriginEnv = (process.env.CORS_ORIGIN || '').trim();
 const clientUrlEnv = (process.env.CLIENT_URL || process.env.FRONTEND_URL || '').trim();
 
@@ -46,7 +44,6 @@ if (corsOriginEnv) {
   allowedOrigins = [clientUrlEnv];
 }
 
-// Ajout automatique des ports locaux en mode développement
 if (process.env.NODE_ENV !== 'production') {
   allowedOrigins.push('http://localhost:3000');
   allowedOrigins.push('http://localhost:5173');
@@ -56,22 +53,16 @@ if (process.env.NODE_ENV !== 'production') {
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Autoriser les requêtes sans origine (comme Postman ou requêtes internes)
     if (!origin) return callback(null, true);
-    
-    // Si l'origine est explicitement dans notre liste
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    
-    // Sécurité de secours : accepter localhost ou 127.0.0.1 de manière dynamique en local
     if (process.env.NODE_ENV !== 'production' && (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:'))) {
       return callback(null, true);
     }
-
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie'],
   exposedHeaders: ['Set-Cookie'],
 };
 
@@ -79,7 +70,8 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 // -------------------------------------------------------------
 
-// Configuration express-session pour cookies (sécurisée en production)
+// Configuration express-session (sécurisée pour Render)
+const isProd = process.env.NODE_ENV === 'production';
 app.use(session({
   name: 'knowledge.sid',
   secret: process.env.SESSION_SECRET || 'default_secret',
@@ -87,8 +79,8 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: true, // Doit être à true sur Render car proxy configuré
+    sameSite: 'none', // Nécessaire pour l'architecture cross-domain (Vercel -> Render)
     maxAge: 1000 * 60 * 60 * 24 // 1 jour
   }
 }));
@@ -114,17 +106,14 @@ app.use('/api/progress', progressRouter);
 app.use('/api/certificates', certificateRouter);
 app.use('/api/purchases', purchaseRouter);
 
-// Route racine principale
 app.get('/', (req, res) => {
   res.json({ message: 'API en ligne', environment: process.env.NODE_ENV });
 });
 
-// Gestion des routes inconnues
 app.use((req, res) => {
   res.status(404).json({ error: 'Route introuvable' });
 });
 
-// Middleware centralisé de gestion des erreurs
 app.use((err, req, res, next) => {
   console.error('Erreur serveur :', err);
   if (err?.message?.includes('Not allowed by CORS')) {

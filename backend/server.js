@@ -55,7 +55,7 @@ async function trySyncWithRetry({ maxAttempts = 5, baseDelayMs = 1000 } = {}) {
         await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
         console.log('🗃️ Base de données recréée avec succès !');
       } else {
-        await sequelize.sync(); // Production safe, ou migrations préférables
+        await sequelize.sync();
         console.log('🗃️ Base de données synchronisée.');
       }
       return;
@@ -82,7 +82,7 @@ const errorHandler = error => {
       process.exit(1);
     default:
       throw error;
-  }
+    }
 };
 
 async function initServer() {

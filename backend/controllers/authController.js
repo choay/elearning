@@ -43,8 +43,7 @@ const register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const activationToken = crypto.randomBytes(24).toString('hex');
     
-    // En utilisant le format d'un objet Date natif converti en Timestamp, 
-    // on force Sequelize à envoyer une valeur standardisée à MySQL (Aiven)
+    // Standardisation du timestamp pour MySQL (Aiven)
     const expiryDate = new Date();
     expiryDate.setHours(expiryDate.getHours() + 24);
     const activationExpires = expiryDate.getTime(); 
@@ -166,16 +165,17 @@ const activateAccount = async (req, res) => {
     const { token } = req.params;
     if (!token) return res.status(400).json({ message: 'Token requis.' });
 
-    // Extraction du timestamp actuel basé sur le temps universel (évite les décalages de fuseaux horaires)
+    // Extraction du timestamp absolu actuel
     const nowTimestamp = new Date().getTime();
 
     const user = await User.findOne({
       where: {
         activationToken: token,
-        activationExpires: { [Op.gt]: nowTimestamp }, // Comparaison propre entre deux entiers
+        activationExpires: { [Op.gt]: nowTimestamp }, // Comparaison d'entiers à l'abri des fuseaux horaires
       },
     });
 
+    // Si l'utilisateur clique une seconde fois, "user" sera null car le token a été effacé au premier clic réussi.
     if (!user) return res.status(400).json({ message: 'Token invalide ou expiré.' });
 
     user.isActive = true;
