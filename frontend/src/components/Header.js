@@ -30,6 +30,8 @@ function Header() {
           <img 
             src={logo} 
             alt="Accueil" 
+            width="130"
+            height="84"
             className="h-12 md:h-14 w-auto object-contain drop-shadow-lg" // Taille ajustée pour un look plus élégant
           />
         </Link>
