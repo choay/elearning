@@ -20,8 +20,8 @@ const Card = ({ to, img, name, desc, color, index }) => (
         alt={name} 
         width="400"
         height="300"
-        fetchpriority={index < 4 ? "high" : "auto"}
-        loading={index < 4 ? "eager" : "lazy"}
+        fetchpriority={index === 0 ? "high" : "auto"}
+        loading={index === 0 ? "eager" : "lazy"}
         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
       />
       <div className="absolute inset-0 bg-black bg-opacity-25 group-hover:bg-opacity-40 transition-opacity duration-500" />
@@ -30,7 +30,6 @@ const Card = ({ to, img, name, desc, color, index }) => (
       </div>
     </div>
     <div className="flex flex-col justify-between flex-grow p-6 md:p-8 text-white" style={{ backgroundColor: color, minHeight: '160px' }}>
-      {/* CORRECTION : text-white au lieu de text-white/90 pour un contraste maximal */}
       <p className="text-white text-sm mb-3 leading-relaxed flex-grow">{desc}</p>
       <span className="inline-block mt-2 text-sm font-semibold opacity-90 group-hover:opacity-100 transition-all duration-300">
         Découvrir →
