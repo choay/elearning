@@ -32,7 +32,7 @@ const sendActivationEmail = async (to, activationToken) => {
           sender: { 
             name: "E-Learning Team", 
             // 🔥 Crucial : On n'utilise plus @gmail.com ici pour éviter que Google supprime le mail
-            email: "no-reply@elearning-platform.com" 
+            email: "maghmoulicho@gmail.com" 
           },
           to: [{ email: to }],
           subject: "Activation de votre compte",
