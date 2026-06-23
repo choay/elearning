@@ -9,7 +9,7 @@ import cuisineImg from '../assets/images/cooking.webp';
 const defaultImages = [musiqueImg, infoImg, jardinImg, cuisineImg];
 const defaultColors = ["#0074c7", "#00497c", "#384050", "#cd2c2e"];
 
-const Card = ({ to, img, name, desc, color, index }) => (
+const Card = ({ to, img, name, desc, color, priority }) => (
   <Link
     to={to}
     className="group relative flex flex-col rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-500 transform hover:-translate-y-2 bg-white"
@@ -20,8 +20,9 @@ const Card = ({ to, img, name, desc, color, index }) => (
         alt={name} 
         width="400"
         height="300"
-        fetchpriority={index === 0 ? "high" : "auto"}
-        loading={index === 0 ? "eager" : "lazy"}
+        // On utilise la prop explicite "priority" transmise par le parent
+        fetchpriority={priority ? "high" : "auto"}
+        loading={priority ? "eager" : "lazy"}
         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
       />
       <div className="absolute inset-0 bg-black bg-opacity-25 group-hover:bg-opacity-40 transition-opacity duration-500" />
@@ -65,7 +66,6 @@ export default function Home() {
           name: t.title,
           desc: t.description || "Découvrez ce thème passionnant.",
           color: defaultColors[index % defaultColors.length],
-          index: index,
         }));
         setThemes(formatted);
       } catch (err) {
@@ -97,7 +97,14 @@ export default function Home() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 mt-16">
           {loading
             ? Array(4).fill(0).map((_, idx) => <CardSkeleton key={idx} />)
-            : themes.map((t, index) => <Card key={t.to + index} {...t} />)
+            : themes.map((t, index) => (
+                <Card 
+                  key={t.to + index} 
+                  {...t} 
+                  // On force explicitement le chargement immédiat (Eager) pour la première ligne visible de l'écran (ex: les 2 premières cartes)
+                  priority={index < 2} 
+                />
+              ))
           }
         </div>
       </div>
