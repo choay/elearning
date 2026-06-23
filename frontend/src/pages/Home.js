@@ -9,13 +9,21 @@ import cuisineImg from '../assets/images/cooking.webp';
 const defaultImages = [musiqueImg, infoImg, jardinImg, cuisineImg];
 const defaultColors = ["#0074c7", "#00497c", "#384050", "#cd2c2e"];
 
-const Card = ({ to, img, name, desc, color }) => (
+const Card = ({ to, img, name, desc, color, index }) => (
   <Link
     to={to}
     className="group relative flex flex-col rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-500 transform hover:-translate-y-2 bg-white"
   >
     <div className="relative h-48 md:h-56 lg:h-64 overflow-hidden flex-shrink-0">
-      <img src={img} alt={name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+      <img 
+        src={img} 
+        alt={name} 
+        width="400"
+        height="300"
+        fetchpriority={index === 0 ? "high" : "auto"}
+        loading={index === 0 ? "eager" : "lazy"}
+        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+      />
       <div className="absolute inset-0 bg-black bg-opacity-25 group-hover:bg-opacity-40 transition-opacity duration-500" />
       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
         <h2 className="text-white text-2xl sm:text-3xl font-extrabold drop-shadow-lg text-center px-3">{name}</h2>
@@ -46,6 +54,7 @@ export default function Home() {
           name: t.title,
           desc: t.description || "Découvrez ce thème passionnant.",
           color: defaultColors[index % defaultColors.length],
+          index: index,
         }));
         setThemes(formatted);
       } catch (err) {
