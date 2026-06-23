@@ -38,6 +38,18 @@ const Card = ({ to, img, name, desc, color, index }) => (
   </Link>
 );
 
+// SKELETON : Empêche le Layout Shift en occupant le même espace visuel que les vraies cartes
+const CardSkeleton = () => (
+  <div className="flex flex-col rounded-2xl overflow-hidden shadow-md bg-white animate-pulse">
+    <div className="h-48 md:h-56 lg:h-64 bg-gray-200 w-full flex-shrink-0" />
+    <div className="flex flex-col p-6 md:p-8 space-y-4" style={{ minHeight: '160px' }}>
+      <div className="h-4 bg-gray-200 rounded w-5/6" />
+      <div className="h-4 bg-gray-200 rounded w-2/3" />
+      <div className="h-4 bg-gray-200 rounded w-1/4 mt-auto" />
+    </div>
+  </div>
+);
+
 export default function Home() {
   const [themes, setThemes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -67,15 +79,6 @@ export default function Home() {
     fetchThemes();
   }, [api]);
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f1f8fc]">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-[#0074c7] mx-auto mb-4" />
-        <span className="text-xl text-[#384050]">Chargement des thèmes...</span>
-      </div>
-    </div>
-  );
-
   if (error) return (
     <div className="min-h-screen flex items-center justify-center bg-[#f1f8fc]">
       <p className="text-red-600 text-xl">{error}</p>
@@ -84,6 +87,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#f1f8fc]">
+      {/* Le conteneur principal reste rendu immédiatement, éliminant le sursaut visuel */}
       <div className="max-w-7xl mx-auto px-6 py-12">
         <h1 className="text-center text-4xl font-bold mt-8 text-[#384050]">
           Bienvenue sur Knowledge{user ? `, ${user.email}` : ', connecté(e) pour accéder aux cours'}
@@ -93,7 +97,10 @@ export default function Home() {
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 mt-16">
-          {themes.map((t, index) => <Card key={t.to + index} {...t} />)}
+          {loading
+            ? Array(4).fill(0).map((_, idx) => <CardSkeleton key={idx} />)
+            : themes.map((t, index) => <Card key={t.to + index} {...t} />)
+          }
         </div>
       </div>
     </div>
