@@ -1,8 +1,6 @@
 // src/App.js
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-import { Elements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
 import { useAuth } from './context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
@@ -25,8 +23,6 @@ import ActivationHandler from './pages/ActivationHandler';
 
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
-
-const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLIC_KEY);
 
 const ProtectedRoute = ({ element: Component, ...rest }) => {
     const { user, isLoading } = useAuth();
@@ -54,25 +50,24 @@ function App() {
                 <Router>
                     <Header />
                     <main className="pt-20 min-h-screen bg-gray-50">
-                        <Elements stripe={stripePromise}>
-                            <Routes>
-                                <Route path="/" element={<Home />} />
-                                <Route path="/login" element={<Login />} />
-                                <Route path="/signup" element={<Signup />} />
-                                <Route path="/activate/:token" element={<ActivationHandler />} />
-                                <Route path="/themes/:themeId" element={<Theme />} />
-                                <Route path="/cursus/:cursusId" element={<CursusPage />} />
-                                <Route path="/lessons/:lessonId" element={<LessonPage />} />
-                                <Route path="/cart" element={<Cart />} />
-                                <Route path="/admin" element={<AdminPage />} />
-                                <Route path="/profile" element={<ProtectedRoute element={ProfilePage} />} />
-                                <Route path="/mentions-legales" element={<LegalMentions />} />
-                                <Route path="/politique-de-confidentialite" element={<PrivacyPolicy />} />
-                                <Route path="/confirmation" element={<Confirmation />} />
-                                <Route path="/error" element={<ErrorPage />} />
-                                <Route path="*" element={<Navigate to="/error" />} />
-                            </Routes>
-                        </Elements>
+                        {/* Suppression complète du wrapper global <Elements> */}
+                        <Routes>
+                            <Route path="/" element={<Home />} />
+                            <Route path="/login" element={<Login />} />
+                            <Route path="/signup" element={<Signup />} />
+                            <Route path="/activate/:token" element={<ActivationHandler />} />
+                            <Route path="/themes/:themeId" element={<Theme />} />
+                            <Route path="/cursus/:cursusId" element={<CursusPage />} />
+                            <Route path="/lessons/:lessonId" element={<LessonPage />} />
+                            <Route path="/cart" element={<Cart />} />
+                            <Route path="/admin" element={<AdminPage />} />
+                            <Route path="/profile" element={<ProtectedRoute element={ProfilePage} />} />
+                            <Route path="/mentions-legales" element={<LegalMentions />} />
+                            <Route path="/politique-de-confidentialite" element={<PrivacyPolicy />} />
+                            <Route path="/confirmation" element={<Confirmation />} />
+                            <Route path="/error" element={<ErrorPage />} />
+                            <Route path="*" element={<Navigate to="/error" />} />
+                        </Routes>
                     </main>
                     <Footer />
                 </Router>

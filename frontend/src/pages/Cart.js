@@ -2,13 +2,18 @@
 import React, { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { CardElement, useStripe, useElements, Elements } from '@stripe/react-stripe-js'; // Ajout de Elements ici
+import { loadStripe } from '@stripe/stripe-js'; // Ajout de loadStripe ici
 import { useNavigate } from 'react-router-dom';
 import { ShoppingCart, Trash2, Mail, X, CheckCircle, Loader } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-function Cart() {
+// Initialisation locale de Stripe (ne se déclenche qu'à l'accès au panier)
+const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLIC_KEY);
+
+// Ton composant d'origine renommé en CartView
+function CartView() {
     const { cart, clearCart, removeFromCart, total } = useCart();
     const { user, fetchUserAndRefresh, api } = useAuth();
 
@@ -29,7 +34,6 @@ function Cart() {
         }
     }, [user, navigate]);
 
-    // helper to fetch product price from backend when missing
     const fetchProductPrice = async (id, type) => {
         try {
             const endpoint = type === 'Cursus' ? `/api/cursus/${id}` : `/api/lessons/${id}`;
@@ -68,12 +72,10 @@ function Cart() {
 
         setLoading(true);
 
-        // Préparer les ids pour create-payment-intent
         const cursusIds = cart.filter(i => i.productType === 'cursus').map(i => Number(i.productId));
         const lessonIds = cart.filter(i => i.productType === 'lesson').map(i => Number(i.productId));
 
         try {
-            // 1) création du PaymentIntent
             const createResp = await (api ? api.post('/api/purchases/create-payment-intent', { cursusIds, lessonIds }) :
                 (await fetch(`${API_URL}/api/purchases/create-payment-intent`, {
                     method: 'POST',
@@ -88,7 +90,6 @@ function Cart() {
                 throw new Error('Impossible de créer le Payment Intent (clientSecret manquant).');
             }
 
-            // 2) confirmation côté client avec Stripe
             const result = await stripe.confirmCardPayment(clientSecret, {
                 payment_method: {
                     card: elements.getElement(CardElement),
@@ -102,8 +103,6 @@ function Cart() {
                 return;
             }
 
-            // 3) préparer les items confirmés avec prix valides
-            // itemsToConfirm : inclure id, type et price
             const itemsToConfirm = [];
             for (const item of cart) {
                 const id = Number(item.productId);
@@ -111,7 +110,6 @@ function Cart() {
                 let price = Number(item.price ?? item.prix ?? 0);
 
                 if (!price || price <= 0) {
-                    // récupérer le prix depuis le backend
                     price = await fetchProductPrice(id, type);
                 }
 
@@ -122,7 +120,6 @@ function Cart() {
                 itemsToConfirm.push({ id, type, price });
             }
 
-            // 4) confirmation côté serveur (sauvegarde de la commande)
             if (api) {
                 await api.post('/api/purchases/confirm-payment', {
                     paymentIntentId: result.paymentIntent.id,
@@ -140,7 +137,6 @@ function Cart() {
                 });
             }
 
-            // refresh user purchases / owned lists
             if (fetchUserAndRefresh) await fetchUserAndRefresh();
 
             setSuccess(true);
@@ -262,4 +258,11 @@ function Cart() {
     );
 }
 
-export default Cart;
+// Le composant par défaut exporté enveloppe CartView avec le Provider Elements de Stripe
+export default function Cart() {
+    return (
+        <Elements stripe={stripePromise}>
+            <CartView />
+        </Elements>
+    );
+}
