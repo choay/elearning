@@ -20,8 +20,8 @@ const Card = ({ to, img, name, desc, color, index }) => (
         alt={name} 
         width="400"
         height="300"
-        fetchpriority={index === 0 ? "high" : "auto"}
-        loading={index === 0 ? "eager" : "lazy"}
+        fetchpriority={index < 4 ? "high" : "auto"}
+        loading={index < 4 ? "eager" : "lazy"}
         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
       />
       <div className="absolute inset-0 bg-black bg-opacity-25 group-hover:bg-opacity-40 transition-opacity duration-500" />
