@@ -30,15 +30,15 @@ const Card = ({ to, img, name, desc, color, index }) => (
       </div>
     </div>
     <div className="flex flex-col justify-between flex-grow p-6 md:p-8 text-white" style={{ backgroundColor: color, minHeight: '160px' }}>
-      <p className="text-white/90 text-sm mb-3 leading-relaxed flex-grow">{desc}</p>
-      <span className="inline-block mt-2 text-sm font-semibold opacity-80 group-hover:opacity-100 transition-all duration-300">
+      {/* CORRECTION : text-white au lieu de text-white/90 pour un contraste maximal */}
+      <p className="text-white text-sm mb-3 leading-relaxed flex-grow">{desc}</p>
+      <span className="inline-block mt-2 text-sm font-semibold opacity-90 group-hover:opacity-100 transition-all duration-300">
         Découvrir →
       </span>
     </div>
   </Link>
 );
 
-// SKELETON : Empêche le Layout Shift en occupant le même espace visuel que les vraies cartes
 const CardSkeleton = () => (
   <div className="flex flex-col rounded-2xl overflow-hidden shadow-md bg-white animate-pulse">
     <div className="h-48 md:h-56 lg:h-64 bg-gray-200 w-full flex-shrink-0" />
@@ -87,7 +87,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#f1f8fc]">
-      {/* Le conteneur principal reste rendu immédiatement, éliminant le sursaut visuel */}
       <div className="max-w-7xl mx-auto px-6 py-12">
         <h1 className="text-center text-4xl font-bold mt-8 text-[#384050]">
           Bienvenue sur Knowledge{user ? `, ${user.email}` : ', connecté(e) pour accéder aux cours'}

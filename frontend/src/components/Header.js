@@ -1,4 +1,3 @@
-// src/components/Header.js
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -15,7 +14,6 @@ function Header() {
     console.log("USER CONNECTÉ:", user);
   }, [user]);
 
-  // Fonction utilitaire pour naviguer et fermer le menu
   const handleNavigation = (path) => {
     setIsOpen(false);
     navigate(path);
@@ -23,7 +21,7 @@ function Header() {
 
   return (
     <header className="fixed top-0 left-0 w-full bg-[#00497c] text-white z-50 shadow-2xl">
-      <div className="max-w-7xl mx-auto flex justify-between items-center px-4 md:px-6 py-3"> {/* Padding vertical légèrement réduit */}
+      <div className="max-w-7xl mx-auto flex justify-between items-center px-4 md:px-6 py-3">
 
         {/* LOGO = ACCUEIL */}
         <Link to="/" className="flex items-center transition-transform hover:scale-105">
@@ -32,16 +30,16 @@ function Header() {
             alt="Accueil" 
             width="130"
             height="84"
-            className="h-12 md:h-14 w-auto object-contain drop-shadow-lg" // Taille ajustée pour un look plus élégant
+            className="h-12 md:h-14 w-auto object-contain drop-shadow-lg"
           />
         </Link>
 
         {/* MENU DESKTOP */}
         <nav className="hidden md:flex items-center gap-6 text-base font-medium">
           
-          <Link to="/" className="hover:text-[#82b864] transition py-1">Accueil</Link>
+          <Link to="/" className="hover:text-yellow-300 transition py-1">Accueil</Link>
           
-          {/* PANIER (ICÔNE) AVEC BADGE */}
+          {/* PANIER */}
           <button 
             onClick={() => handleNavigation('/cart')}
             className="relative p-2 rounded-full hover:bg-white/10 transition group"
@@ -57,17 +55,14 @@ function Header() {
 
           {user ? (
             <div className="flex items-center gap-4">
-              {/* Profil : mis en évidence avec un fond subtil */}
               <Link 
                 to="/profile" 
                 className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 transition"
               >
-                {/* Icône de profil */}
                 <span className="text-xl">👤</span> 
                 <span className="text-yellow-300 font-semibold truncate max-w-28">{user.email}</span>
               </Link>
               
-              {/* Bouton de déconnexion : Couleur d'alerte */}
               <button
                 onClick={() => { logout(); navigate('/login'); }}
                 className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-full font-bold transition transform hover:scale-105 shadow-md"
@@ -77,17 +72,16 @@ function Header() {
             </div>
           ) : (
             <div className="flex items-center gap-4">
-              {/* Se connecter : Couleur secondaire forte */}
               <Link 
                 to="/login" 
                 className="bg-[#0074c7] hover:bg-[#005a9e] px-6 py-2 rounded-full font-bold transition hover:scale-105 shadow-md"
               >
                 Connexion
               </Link>
-              {/* S'inscrire : Couleur d'accentuation (Vert pomme) */}
+              {/* CORRECTION : Utilisation d'un vert WCAG accessible pour le bouton Inscription */}
               <Link 
                 to="/signup" 
-                className="bg-[#82b864] hover:bg-[#6aa44b] px-6 py-2 rounded-full font-bold transition hover:scale-105 shadow-md"
+                className="bg-[#49792e] hover:bg-[#385e23] px-6 py-2 rounded-full font-bold transition hover:scale-105 shadow-md"
               >
                 Inscription
               </Link>
@@ -95,7 +89,7 @@ function Header() {
           )}
         </nav>
 
-        {/* MENU MOBILE (BURGER) */}
+        {/* MENU BURGER MOBILE */}
         <button 
           onClick={() => setIsOpen(!isOpen)}
           className="md:hidden text-3xl p-2 rounded-lg hover:bg-white/10 transition"
@@ -110,11 +104,11 @@ function Header() {
         <div className="md:hidden bg-[#00497c] border-t-2 border-white/20 absolute w-full shadow-xl">
           <div className="flex flex-col gap-4 p-6 text-lg">
             
-            <Link to="/" onClick={() => handleNavigation('/')} className="hover:text-[#82b864] py-2">Accueil</Link>
+            <Link to="/" onClick={() => handleNavigation('/')} className="hover:text-yellow-300 py-2">Accueil</Link>
             
             <button 
               onClick={() => handleNavigation('/cart')}
-              className="text-left hover:text-[#82b864] relative py-2"
+              className="text-left hover:text-yellow-300 relative py-2"
             >
               Panier
               {cart.length > 0 && (
@@ -144,7 +138,8 @@ function Header() {
                 <Link to="/login" onClick={() => handleNavigation('/login')} className="bg-[#0074c7] hover:bg-[#005a9e] px-8 py-3 rounded-full font-bold text-center shadow-md">
                   Se connecter
                 </Link>
-                <Link to="/signup" onClick={() => handleNavigation('/signup')} className="bg-[#82b864] hover:bg-[#6aa44b] px-8 py-3 rounded-full font-bold text-center shadow-md">
+                {/* CORRECTION MOBILE : Vert accessible également ici */}
+                <Link to="/signup" onClick={() => handleNavigation('/signup')} className="bg-[#49792e] hover:bg-[#385e23] px-8 py-3 rounded-full font-bold text-center shadow-md">
                   S'inscrire
                 </Link>
               </>
